@@ -911,7 +911,96 @@ async function seed() {
        ON CONFLICT (id) DO NOTHING`
     );
 
-    // 16. Initialize Counters
+    // 16. Seed HR & Staff Management
+    const monthStr = today.slice(0, 7);
+    await pool.query(
+      `INSERT INTO hr_employees (
+         id, full_name, email, phone, address, qualifications, experience_years,
+         job_title, department, position_level, reporting_manager, work_location,
+         employment_type, joining_date, basic_salary, allowances, tax_rate_percent,
+         overtime_hourly_rate, leave_balances, employment_status
+       ) VALUES
+         ('EMP-2026-0001','Dr. Rajesh Mehta','rajesh.mehta@healix.org','+91-98200-10001','Koregaon Park, Pune','MD General Medicine',12,'Senior Consultant Physician','General Medicine','Senior','Chief Medical Officer','OPD Wing A','Full-Time','2021-03-15',7500,1500,15,80,'{"annual":16,"sick":10,"casual":5}'::jsonb,'Active'),
+         ('EMP-2026-0002','Nurse Anjali Deshmukh','anjali.d@healix.org','+91-98200-10002','Baner Road, Pune','B.Sc Nursing, ICU Cert',7,'ICU Charge Nurse','ICU','Lead','Nursing Superintendent','ICU Floor 3','Full-Time','2022-07-01',3600,750,10,35,'{"annual":14,"sick":9,"casual":6}'::jsonb,'Active'),
+         ('EMP-2026-0003','Arjun Kulkarni','arjun.k@healix.org','+91-98200-10003','Kothrud, Pune','M.Sc Medical Lab Technology',5,'Senior Lab Technologist','Laboratory','Mid-Level','Dr. N. Verma','Central Lab Wing','Full-Time','2023-02-10',2900,550,8,28,'{"annual":18,"sick":10,"casual":6}'::jsonb,'Active'),
+         ('EMP-2026-0004','Ritu Sharma','ritu.s@healix.org','+91-98200-10004','Viman Nagar, Pune','B.Pharm, Registered Pharmacist',6,'Lead Clinical Pharmacist','Pharmacy','Lead','Hospital Administrator','Main Pharmacy','Full-Time','2022-11-05',3300,650,10,30,'{"annual":17,"sick":8,"casual":4}'::jsonb,'Active')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO hr_department_assignments (
+         id, employee_id, employee_name, from_department, to_department, new_job_title,
+         reporting_manager, work_location, change_type, effective_date, reason, approved_by
+       ) VALUES (
+         'ASN-HR-2026-0001','EMP-2026-0002','Nurse Anjali Deshmukh','General Ward','ICU','ICU Charge Nurse',
+         'Nursing Superintendent','ICU Floor 3','Promotion','2025-04-01','Promoted for exceptional critical care leadership','HR Manager'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO hr_attendance (
+         id, employee_id, employee_name, department, attendance_date, check_in_time, check_out_time,
+         working_hours, overtime_hours, is_late, is_early_departure, status, recorded_by
+       ) VALUES
+         ('ATT-2026-0001','EMP-2026-0001','Dr. Rajesh Mehta','General Medicine',$1,'08:55','17:30',8.58,0.58,FALSE,FALSE,'Present','Biometric Sync'),
+         ('ATT-2026-0002','EMP-2026-0002','Nurse Anjali Deshmukh','ICU',$1,'07:00','17:00',10.00,2.00,FALSE,FALSE,'Present','Biometric Sync'),
+         ('ATT-2026-0003','EMP-2026-0003','Arjun Kulkarni','Laboratory',$1,'09:25','17:30',8.08,0.08,TRUE,FALSE,'Late','Biometric Sync')
+       ON CONFLICT (employee_id, attendance_date) DO NOTHING`,
+      [today]
+    );
+
+    await pool.query(
+      `INSERT INTO hr_shifts (
+         id, shift_name, employee_id, employee_name, department, shift_date, start_time, end_time, is_rotating, status, notes
+       ) VALUES
+         ('SHF-2026-0001','Morning Shift','EMP-2026-0002','Nurse Anjali Deshmukh','ICU',$1,'07:00','15:00',TRUE,'Scheduled','ICU Floor 3 primary rotation'),
+         ('SHF-2026-0002','Day Shift','EMP-2026-0003','Arjun Kulkarni','Laboratory',$1,'09:00','17:00',FALSE,'Scheduled','Central Lab hematology & biochemistry bench')
+       ON CONFLICT (id) DO NOTHING`,
+      [today]
+    );
+
+    await pool.query(
+      `INSERT INTO hr_leaves (
+         id, employee_id, employee_name, department, leave_type, start_date, end_date, days_count, reason, status
+       ) VALUES (
+         'LEV-2026-0001','EMP-2026-0004','Ritu Sharma','Pharmacy','Casual',$1,$1,1,'Family medical appointment','Pending'
+       ) ON CONFLICT (id) DO NOTHING`,
+      [today]
+    );
+
+    await pool.query(
+      `INSERT INTO hr_payroll (
+         id, employee_id, employee_name, department, job_title, payroll_month,
+         basic_pay, allowances, overtime_hours, overtime_pay, bonus, gross_pay,
+         unpaid_leave_deduction, tax_deduction, other_deductions, net_pay, status, approved_by, paid_at
+       ) VALUES (
+         'PAYR-2026-0001','EMP-2026-0001','Dr. Rajesh Mehta','General Medicine','Senior Consultant Physician',$1,
+         7500.00,1500.00,0.58,46.40,250.00,9296.40,0.00,1394.46,0.00,7901.94,'Paid','HR Manager',NOW()
+       ) ON CONFLICT (employee_id, payroll_month) DO NOTHING`,
+      [monthStr]
+    );
+
+    await pool.query(
+      `INSERT INTO hr_performance_reviews (
+         id, employee_id, employee_name, department, review_period, rating, targets, achievements,
+         feedback, appraisal_decision, reviewer_name, status
+       ) VALUES (
+         'PRF-2026-0001','EMP-2026-0002','Nurse Anjali Deshmukh','ICU','H2 2026',4.8,
+         'Maintain zero medication administration errors and mentor 4 junior ICU nurses',
+         'Achieved 100% ICU safety compliance and trained 5 new nursing staff',
+         'Outstanding clinical leadership under high ICU occupancy',
+         'Salary Increment','Nursing Superintendent','Completed'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO hr_audit_logs (id, entity_type, entity_id, action, actor_role, actor_name, details)
+       VALUES
+         ('HAUD-2026-0001','Payroll','PAYR-2026-0001','Paid','HR Manager','HR Admin','Processed and paid salary for Dr. Rajesh Mehta ($7,901.94)')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 17. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -984,6 +1073,14 @@ async function seed() {
       ["ambulance_dispatch", 1],
       ["ambulance_trip", 1],
       ["ambulance_audit", 1],
+      ["hr_employee", 4],
+      ["hr_assignment", 1],
+      ["hr_attendance", 3],
+      ["hr_shift", 2],
+      ["hr_leave", 1],
+      ["hr_payroll", 1],
+      ["hr_performance", 1],
+      ["hr_audit", 1],
     ];
     for (const [key, val] of counters) {
       await pool.query(

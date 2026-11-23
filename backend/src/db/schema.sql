@@ -1282,3 +1282,156 @@ CREATE TABLE IF NOT EXISTS ambulance_audit_logs (
   details TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =======================================
+-- MODULE 13: HR & STAFF MANAGEMENT
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS hr_employees (
+  id TEXT PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  phone TEXT NOT NULL,
+  address TEXT NOT NULL DEFAULT '',
+  photo_url TEXT NOT NULL DEFAULT '',
+  qualifications TEXT NOT NULL DEFAULT '',
+  experience_years INTEGER NOT NULL DEFAULT 0,
+  job_title TEXT NOT NULL,
+  department TEXT NOT NULL,
+  position_level TEXT NOT NULL DEFAULT 'Staff',
+  reporting_manager TEXT NOT NULL DEFAULT '',
+  work_location TEXT NOT NULL DEFAULT 'Main Campus',
+  employment_type TEXT NOT NULL DEFAULT 'Full-Time',
+  joining_date TEXT NOT NULL,
+  documents JSONB NOT NULL DEFAULT '[]'::jsonb,
+  basic_salary NUMERIC(12,2) NOT NULL DEFAULT 3000,
+  allowances NUMERIC(12,2) NOT NULL DEFAULT 500,
+  tax_rate_percent NUMERIC(5,2) NOT NULL DEFAULT 10,
+  overtime_hourly_rate NUMERIC(8,2) NOT NULL DEFAULT 25,
+  leave_balances JSONB NOT NULL DEFAULT '{"annual":18,"sick":10,"casual":6}'::jsonb,
+  employment_status TEXT NOT NULL DEFAULT 'Active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hr_department_assignments (
+  id TEXT PRIMARY KEY,
+  employee_id TEXT NOT NULL REFERENCES hr_employees(id) ON DELETE CASCADE,
+  employee_name TEXT NOT NULL,
+  from_department TEXT NOT NULL DEFAULT '',
+  to_department TEXT NOT NULL,
+  new_job_title TEXT NOT NULL,
+  reporting_manager TEXT NOT NULL DEFAULT '',
+  work_location TEXT NOT NULL DEFAULT 'Main Campus',
+  change_type TEXT NOT NULL DEFAULT 'Transfer',
+  effective_date TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  approved_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hr_attendance (
+  id TEXT PRIMARY KEY,
+  employee_id TEXT NOT NULL REFERENCES hr_employees(id) ON DELETE CASCADE,
+  employee_name TEXT NOT NULL,
+  department TEXT NOT NULL,
+  attendance_date TEXT NOT NULL,
+  check_in_time TEXT NOT NULL DEFAULT '',
+  check_out_time TEXT NOT NULL DEFAULT '',
+  working_hours NUMERIC(5,2) NOT NULL DEFAULT 0,
+  overtime_hours NUMERIC(5,2) NOT NULL DEFAULT 0,
+  is_late BOOLEAN NOT NULL DEFAULT FALSE,
+  is_early_departure BOOLEAN NOT NULL DEFAULT FALSE,
+  status TEXT NOT NULL DEFAULT 'Present',
+  correction_note TEXT NOT NULL DEFAULT '',
+  recorded_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (employee_id, attendance_date)
+);
+
+CREATE TABLE IF NOT EXISTS hr_shifts (
+  id TEXT PRIMARY KEY,
+  shift_name TEXT NOT NULL,
+  employee_id TEXT NOT NULL REFERENCES hr_employees(id) ON DELETE CASCADE,
+  employee_name TEXT NOT NULL,
+  department TEXT NOT NULL,
+  shift_date TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  is_rotating BOOLEAN NOT NULL DEFAULT FALSE,
+  status TEXT NOT NULL DEFAULT 'Scheduled',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hr_leaves (
+  id TEXT PRIMARY KEY,
+  employee_id TEXT NOT NULL REFERENCES hr_employees(id) ON DELETE CASCADE,
+  employee_name TEXT NOT NULL,
+  department TEXT NOT NULL,
+  leave_type TEXT NOT NULL,
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  days_count INTEGER NOT NULL DEFAULT 1,
+  reason TEXT NOT NULL,
+  document_ref TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Pending',
+  reviewed_by TEXT,
+  review_note TEXT NOT NULL DEFAULT '',
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reviewed_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS hr_payroll (
+  id TEXT PRIMARY KEY,
+  employee_id TEXT NOT NULL REFERENCES hr_employees(id) ON DELETE CASCADE,
+  employee_name TEXT NOT NULL,
+  department TEXT NOT NULL,
+  job_title TEXT NOT NULL,
+  payroll_month TEXT NOT NULL,
+  basic_pay NUMERIC(12,2) NOT NULL,
+  allowances NUMERIC(12,2) NOT NULL DEFAULT 0,
+  overtime_hours NUMERIC(6,2) NOT NULL DEFAULT 0,
+  overtime_pay NUMERIC(12,2) NOT NULL DEFAULT 0,
+  bonus NUMERIC(12,2) NOT NULL DEFAULT 0,
+  gross_pay NUMERIC(12,2) NOT NULL,
+  unpaid_leave_deduction NUMERIC(12,2) NOT NULL DEFAULT 0,
+  tax_deduction NUMERIC(12,2) NOT NULL DEFAULT 0,
+  other_deductions NUMERIC(12,2) NOT NULL DEFAULT 0,
+  net_pay NUMERIC(12,2) NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Draft',
+  approved_by TEXT,
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (employee_id, payroll_month)
+);
+
+CREATE TABLE IF NOT EXISTS hr_performance_reviews (
+  id TEXT PRIMARY KEY,
+  employee_id TEXT NOT NULL REFERENCES hr_employees(id) ON DELETE CASCADE,
+  employee_name TEXT NOT NULL,
+  department TEXT NOT NULL,
+  review_period TEXT NOT NULL,
+  rating NUMERIC(3,1) NOT NULL DEFAULT 4.0,
+  targets TEXT NOT NULL DEFAULT '',
+  achievements TEXT NOT NULL DEFAULT '',
+  feedback TEXT NOT NULL DEFAULT '',
+  disciplinary_notes TEXT NOT NULL DEFAULT '',
+  appraisal_decision TEXT NOT NULL DEFAULT 'Met Expectations',
+  reviewer_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Completed',
+  reviewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hr_audit_logs (
+  id TEXT PRIMARY KEY,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  actor_role TEXT NOT NULL,
+  actor_name TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

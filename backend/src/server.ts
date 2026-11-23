@@ -6,6 +6,7 @@ import { billingRoutes } from "./billing/routes.js";
 import { bloodBankRoutes } from "./blood-bank/routes.js";
 import { getPool } from "./db/client.js";
 import { emergencyRoutes } from "./emergency/routes.js";
+import { hrRoutes } from "./hr/routes.js";
 import { icuRoutes } from "./icu/routes.js";
 import { ipdRoutes } from "./ipd/routes.js";
 import { labRoutes } from "./lab/routes.js";
@@ -38,6 +39,7 @@ app.use(
       "x-billing-role",
       "x-bloodbank-role",
       "x-ambulance-role",
+      "x-hr-role",
     ],
   })
 );
@@ -70,6 +72,7 @@ app.route("/api/pharmacy", pharmacyRoutes);
 app.route("/api/billing", billingRoutes);
 app.route("/api/blood-bank", bloodBankRoutes);
 app.route("/api/ambulance", ambulanceRoutes);
+app.route("/api/hr", hrRoutes);
 
 const port = Number(process.env.PORT || 4000);
 
