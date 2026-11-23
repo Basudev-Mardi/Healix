@@ -5,6 +5,7 @@ import { getPool } from "./db/client.js";
 import { emergencyRoutes } from "./emergency/routes.js";
 import { icuRoutes } from "./icu/routes.js";
 import { ipdRoutes } from "./ipd/routes.js";
+import { labRoutes } from "./lab/routes.js";
 import { opdRoutes } from "./opd/routes.js";
 import { otRoutes } from "./ot/routes.js";
 import { wardsBedsRoutes } from "./wards-beds/routes.js";
@@ -26,6 +27,7 @@ app.use(
       "x-ward-role",
       "x-icu-role",
       "x-ot-role",
+      "x-lab-role",
     ],
   })
 );
@@ -52,6 +54,7 @@ app.route("/api/ipd", ipdRoutes);
 app.route("/api/wards-beds", wardsBedsRoutes);
 app.route("/api/icu", icuRoutes);
 app.route("/api/ot", otRoutes);
+app.route("/api/lab", labRoutes);
 
 const port = Number(process.env.PORT || 4000);
 

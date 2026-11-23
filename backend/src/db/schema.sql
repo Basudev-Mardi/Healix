@@ -680,3 +680,90 @@ CREATE TABLE IF NOT EXISTS ot_postop_monitoring (
   transfer_destination TEXT NOT NULL DEFAULT 'PACU / Recovery',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =======================================
+-- MODULE 07: LABORATORY MANAGEMENT (LIS)
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS lab_tests (
+  id TEXT PRIMARY KEY,
+  test_code TEXT NOT NULL UNIQUE,
+  test_name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  specimen_type TEXT NOT NULL,
+  department TEXT NOT NULL,
+  result_format TEXT NOT NULL DEFAULT 'Numerical',
+  unit TEXT NOT NULL DEFAULT '',
+  ref_min NUMERIC(10,2),
+  ref_max NUMERIC(10,2),
+  reference_range_label TEXT NOT NULL DEFAULT '',
+  price NUMERIC(10,2) NOT NULL DEFAULT 0,
+  turnaround_minutes INTEGER NOT NULL DEFAULT 60,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS lab_requests (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  referring_doctor TEXT NOT NULL,
+  priority TEXT NOT NULL DEFAULT 'Routine',
+  clinical_notes TEXT NOT NULL DEFAULT '',
+  test_ids TEXT[] NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Pending',
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS lab_samples (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL UNIQUE REFERENCES lab_requests(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  specimen_type TEXT NOT NULL,
+  collected_by TEXT NOT NULL,
+  collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  status TEXT NOT NULL DEFAULT 'Collected',
+  rejection_reason TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  tracking_history JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS lab_results (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES lab_requests(id) ON DELETE CASCADE,
+  sample_id TEXT NOT NULL REFERENCES lab_samples(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  test_id TEXT NOT NULL REFERENCES lab_tests(id),
+  test_code TEXT NOT NULL,
+  test_name TEXT NOT NULL,
+  result_format TEXT NOT NULL DEFAULT 'Numerical',
+  result_value TEXT NOT NULL,
+  unit TEXT NOT NULL DEFAULT '',
+  reference_range TEXT NOT NULL DEFAULT '',
+  is_out_of_range BOOLEAN NOT NULL DEFAULT FALSE,
+  remarks TEXT NOT NULL DEFAULT '',
+  processed_by TEXT NOT NULL,
+  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  verification_status TEXT NOT NULL DEFAULT 'Pending',
+  verified_by TEXT,
+  verified_at TIMESTAMPTZ,
+  correction_notes TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (request_id, test_id)
+);
+
+CREATE TABLE IF NOT EXISTS lab_reports (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL UNIQUE REFERENCES lab_requests(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  referring_doctor TEXT NOT NULL,
+  verified_by TEXT NOT NULL,
+  generated_by TEXT NOT NULL,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  report_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb
+);

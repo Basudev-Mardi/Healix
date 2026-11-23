@@ -490,7 +490,66 @@ async function seed() {
        ) ON CONFLICT (id) DO NOTHING`
     );
 
-    // 10. Initialize Counters
+    // 10. Seed Laboratory Management (LIS)
+    const labTests: [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      number | null,
+      number | null,
+      string,
+      number,
+      number,
+    ][] = [
+      ["TST-001", "CBC-01", "Complete Blood Count (Hemoglobin)", "Hematology", "Hemoglobin & RBC panel", "Whole Blood (EDTA)", "Hematology", "Numerical", "g/dL", 12.0, 16.5, "12.0 - 16.5 g/dL", 25.0, 45],
+      ["TST-002", "HBA1C", "Glycated Hemoglobin (HbA1c)", "Biochemistry", "3-month average blood glucose", "Whole Blood (EDTA)", "Clinical Biochemistry", "Numerical", "%", 4.0, 5.6, "4.0 - 5.6 %", 35.0, 90],
+      ["TST-003", "TROP-I", "High-Sensitivity Cardiac Troponin I", "Biochemistry", "Acute myocardial injury marker", "Serum", "Emergency Biochemistry", "Numerical", "ng/L", 0, 19.0, "< 19.0 ng/L", 65.0, 30],
+      ["TST-004", "LFT-ALT", "Liver Function (ALT / SGPT)", "Biochemistry", "Hepatocellular enzyme panel", "Serum", "Clinical Biochemistry", "Numerical", "U/L", 7.0, 56.0, "7.0 - 56.0 U/L", 30.0, 60],
+      ["TST-005", "CULT-UR", "Urine Culture & Sensitivity", "Microbiology", "Bacterial growth & antibiotic sensitivity", "Urine", "Microbiology", "Qualitative", "", null, null, "No Growth", 45.0, 1440],
+    ];
+    for (const row of labTests) {
+      await pool.query(
+        `INSERT INTO lab_tests (
+          id, test_code, test_name, category, description, specimen_type, department,
+          result_format, unit, ref_min, ref_max, reference_range_label, price, turnaround_minutes
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        ON CONFLICT (id) DO NOTHING`,
+        row
+      );
+    }
+
+    await pool.query(
+      `INSERT INTO lab_requests (id, patient_id, patient_name, referring_doctor, priority, clinical_notes, test_ids, status)
+       VALUES
+         ('LAB-2026-0001','PAT-2026-0002','Vikram Rao','Dr. Lin Chen','STAT','Acute chest discomfort — rule out NSTEMI',ARRAY['TST-001','TST-003'],'Processing'),
+         ('LAB-2026-0002','PAT-2026-0001','Ananya Sharma','Dr. Rajesh Mehta','Routine','Baseline diabetes & liver panel',ARRAY['TST-002','TST-004'],'Pending')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO lab_samples (id, request_id, patient_id, specimen_type, collected_by, status, notes, tracking_history)
+       VALUES (
+         'SMP-2026-0001','LAB-2026-0001','PAT-2026-0002','Whole Blood (EDTA) + Serum','Phlebotomist Priya','Processing',
+         'STAT draw from ER Bay 3',
+         '[{"stage":"Collected","staff":"Phlebotomist Priya","timestamp":"2026-11-23T09:00:00.000Z","note":"STAT venipuncture completed"},{"stage":"Received","staff":"Lab Tech Arjun","timestamp":"2026-11-23T09:08:00.000Z","note":"Accessioned at Central Lab"},{"stage":"Processing","staff":"Lab Tech Arjun","timestamp":"2026-11-23T09:12:00.000Z","note":"Loaded onto biochemistry analyzer"}]'::jsonb
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO lab_results (id, request_id, sample_id, patient_id, test_id, test_code, test_name, result_format, result_value, unit, reference_range, is_out_of_range, remarks, processed_by, verification_status, verified_by, verified_at)
+       VALUES
+         ('RES-2026-0001','LAB-2026-0001','SMP-2026-0001','PAT-2026-0002','TST-001','CBC-01','Complete Blood Count (Hemoglobin)','Numerical','13.8','g/dL','12.0 - 16.5 g/dL',FALSE,'Within normal limits','Lab Tech Arjun','Verified','Dr. N. Verma (Pathologist)',NOW()),
+         ('RES-2026-0002','LAB-2026-0001','SMP-2026-0001','PAT-2026-0002','TST-003','TROP-I','High-Sensitivity Cardiac Troponin I','Numerical','42.5','ng/L','< 19.0 ng/L',TRUE,'Elevated cardiac troponin — physician alerted','Lab Tech Arjun','Pending',NULL,NULL)
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 11. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -528,6 +587,11 @@ async function seed() {
       ["ot_surgical_record", 0],
       ["ot_anesthesia_record", 0],
       ["ot_postop", 0],
+      ["lab_test", 5],
+      ["lab_request", 2],
+      ["lab_sample", 1],
+      ["lab_result", 2],
+      ["lab_report", 0],
     ];
     for (const [key, val] of counters) {
       await pool.query(
