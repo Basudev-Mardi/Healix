@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { apiUrl } from "@/lib/api";
 import { hasOpdPermission, OPD_ROLES } from "@/lib/opd/permissions";
 import type {
   ConsultationStatus,
@@ -69,7 +70,7 @@ export function OpdWorkspace() {
 
   const fetchState = useCallback(async () => {
     try {
-      const res = await fetch("/api/opd/state", {
+      const res = await fetch(apiUrl("/api/opd/state"), {
         headers: { "x-opd-role": role },
         cache: "no-store",
       });
@@ -90,7 +91,7 @@ export function OpdWorkspace() {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch("/api/opd/state", {
+        const res = await fetch(apiUrl("/api/opd/state"), {
           headers: { "x-opd-role": role },
           cache: "no-store",
         });
@@ -127,7 +128,7 @@ export function OpdWorkspace() {
       body: unknown
     ): Promise<T | null> => {
       try {
-        const res = await fetch(url, {
+        const res = await fetch(apiUrl(url), {
           method,
           headers: {
             "Content-Type": "application/json",

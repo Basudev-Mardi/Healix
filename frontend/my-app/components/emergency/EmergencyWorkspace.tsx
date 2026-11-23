@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { apiUrl } from "@/lib/api";
 import {
   EMERGENCY_ROLES,
   hasEmergencyPermission,
@@ -67,7 +68,7 @@ export function EmergencyWorkspace() {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch("/api/emergency/state", {
+        const res = await fetch(apiUrl("/api/emergency/state"), {
           headers: { "x-emergency-role": role },
           cache: "no-store",
         });
@@ -99,7 +100,7 @@ export function EmergencyWorkspace() {
   }, [role]);
 
   const refreshState = useCallback(async () => {
-    const res = await fetch("/api/emergency/state", {
+    const res = await fetch(apiUrl("/api/emergency/state"), {
       headers: { "x-emergency-role": role },
       cache: "no-store",
     });
@@ -115,7 +116,7 @@ export function EmergencyWorkspace() {
       body: unknown
     ): Promise<T | null> => {
       try {
-        const res = await fetch(url, {
+        const res = await fetch(apiUrl(url), {
           method,
           headers: {
             "Content-Type": "application/json",
