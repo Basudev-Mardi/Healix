@@ -1059,3 +1059,118 @@ CREATE TABLE IF NOT EXISTS billing_audit_logs (
   details TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =======================================
+-- MODULE 11: BLOOD BANK MANAGEMENT
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS blood_donors (
+  id TEXT PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  date_of_birth TEXT NOT NULL DEFAULT '',
+  gender TEXT NOT NULL DEFAULT '',
+  phone TEXT NOT NULL,
+  email TEXT NOT NULL DEFAULT '',
+  blood_group TEXT NOT NULL,
+  weight_kg NUMERIC(5,1) NOT NULL DEFAULT 60,
+  hemoglobin_gdl NUMERIC(4,1) NOT NULL DEFAULT 13.5,
+  medical_history TEXT NOT NULL DEFAULT 'No contraindications',
+  eligibility_status TEXT NOT NULL DEFAULT 'Eligible',
+  deferral_reason TEXT NOT NULL DEFAULT '',
+  last_donation_date TEXT NOT NULL DEFAULT '',
+  total_donations INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'Active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS blood_units (
+  id TEXT PRIMARY KEY,
+  donation_id TEXT NOT NULL,
+  donor_id TEXT NOT NULL REFERENCES blood_donors(id) ON DELETE CASCADE,
+  donor_name TEXT NOT NULL,
+  source_unit_id TEXT,
+  blood_group TEXT NOT NULL,
+  component TEXT NOT NULL DEFAULT 'Whole Blood',
+  volume_ml INTEGER NOT NULL DEFAULT 450,
+  collection_center TEXT NOT NULL DEFAULT 'Main Hospital Blood Center',
+  storage_location TEXT NOT NULL DEFAULT 'Cold Room Fridge A1',
+  storage_temp TEXT NOT NULL DEFAULT '2°C - 6°C',
+  collection_date TEXT NOT NULL,
+  expiry_date TEXT NOT NULL,
+  screening_status TEXT NOT NULL DEFAULT 'Pending',
+  screening_notes TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Testing',
+  reserved_for_request_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS blood_requests (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  department TEXT NOT NULL,
+  requested_blood_group TEXT NOT NULL,
+  component TEXT NOT NULL,
+  units_requested INTEGER NOT NULL DEFAULT 1,
+  units_fulfilled INTEGER NOT NULL DEFAULT 0,
+  urgency TEXT NOT NULL DEFAULT 'Routine',
+  requesting_doctor TEXT NOT NULL,
+  clinical_indication TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Pending',
+  rejection_reason TEXT NOT NULL DEFAULT '',
+  approved_by TEXT,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS blood_compatibility_tests (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES blood_requests(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  patient_blood_group TEXT NOT NULL,
+  unit_id TEXT NOT NULL REFERENCES blood_units(id) ON DELETE CASCADE,
+  donor_blood_group TEXT NOT NULL,
+  component TEXT NOT NULL,
+  grouping_confirmed BOOLEAN NOT NULL DEFAULT TRUE,
+  crossmatch_result TEXT NOT NULL,
+  antibody_screen TEXT NOT NULL DEFAULT 'Negative',
+  tested_by TEXT NOT NULL,
+  tested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  verification_status TEXT NOT NULL DEFAULT 'Pending',
+  verified_by TEXT,
+  verified_at TIMESTAMPTZ,
+  notes TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS blood_transfusions (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES blood_requests(id) ON DELETE CASCADE,
+  unit_id TEXT NOT NULL UNIQUE REFERENCES blood_units(id) ON DELETE CASCADE,
+  compatibility_test_id TEXT NOT NULL REFERENCES blood_compatibility_tests(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  blood_group TEXT NOT NULL,
+  component TEXT NOT NULL,
+  volume_ml INTEGER NOT NULL DEFAULT 350,
+  administering_staff TEXT NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  monitoring_observations TEXT NOT NULL DEFAULT '',
+  adverse_reaction TEXT NOT NULL DEFAULT 'None',
+  adverse_reaction_notes TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Completed'
+);
+
+CREATE TABLE IF NOT EXISTS blood_audit_logs (
+  id TEXT PRIMARY KEY,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  actor_role TEXT NOT NULL,
+  actor_name TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

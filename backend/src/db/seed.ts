@@ -783,7 +783,67 @@ async function seed() {
        ON CONFLICT (id) DO NOTHING`
     );
 
-    // 14. Initialize Counters
+    // 14. Seed Blood Bank Management
+    await pool.query(
+      `INSERT INTO blood_donors (
+         id, full_name, date_of_birth, gender, phone, email, blood_group,
+         weight_kg, hemoglobin_gdl, medical_history, eligibility_status,
+         last_donation_date, total_donations, status
+       ) VALUES
+         ('DNR-2026-0001','Siddharth Nair','1992-04-14','Male','+91-98110-22101','sid.nair@example.com','O-',72.5,14.8,'No chronic illness; regular voluntary donor','Eligible','2026-11-18',4,'Active'),
+         ('DNR-2026-0002','Kavya Menon','1995-09-22','Female','+91-98110-33202','kavya.m@example.com','A+',61.0,13.4,'Cleared screening; no recent travel or surgery','Eligible','2026-11-20',2,'Active'),
+         ('DNR-2026-0003','Rohan Kulkarni','1989-12-03','Male','+91-98110-44303','rohan.k@example.com','B+',78.0,15.1,'Healthy voluntary donor','Eligible','2026-11-15',5,'Active'),
+         ('DNR-2026-0004','Priyanka Bose','1997-06-11','Female','+91-98110-55404','priyanka.b@example.com','AB+',59.5,13.1,'Plasma donor cleared','Eligible','2026-11-10',3,'Active')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO blood_units (
+         id, donation_id, donor_id, donor_name, source_unit_id, blood_group, component,
+         volume_ml, collection_center, storage_location, storage_temp,
+         collection_date, expiry_date, screening_status, screening_notes, status
+       ) VALUES
+         ('UNT-2026-0001','DON-2026-0001','DNR-2026-0001','Siddharth Nair',NULL,'O-','RBC',350,'Main Hospital Blood Center','Cold Room Fridge A1','2°C - 6°C','2026-11-18','2026-12-30','Cleared','HIV/HBV/HCV/Syphilis/Malaria Non-Reactive','Available'),
+         ('UNT-2026-0002','DON-2026-0002','DNR-2026-0002','Kavya Menon',NULL,'A+','Whole Blood',450,'Main Hospital Blood Center','Cold Room Fridge A2','2°C - 6°C','2026-11-20','2026-12-25','Cleared','All infectious screening markers Non-Reactive','Available'),
+         ('UNT-2026-0003','DON-2026-0003','DNR-2026-0003','Rohan Kulkarni',NULL,'B+','Platelets',250,'Main Hospital Blood Center','Platelet Agitator P1','20°C - 24°C (Agitator)','2026-11-21','2026-11-26','Cleared','Cleared for urgent transfusion','Available'),
+         ('UNT-2026-0004','DON-2026-0004','DNR-2026-0004','Priyanka Bose',NULL,'AB+','Plasma',280,'Main Hospital Blood Center','Deep Freezer F1','-18°C or below','2026-11-10','2027-11-10','Cleared','Universal plasma unit cleared','Available'),
+         ('UNT-2026-0005','DON-2026-0001','DNR-2026-0001','Siddharth Nair','UNT-2026-0001','O-','Cryoprecipitate',50,'Main Hospital Blood Center','Deep Freezer F2','-18°C or below','2026-11-18','2027-11-18','Cleared','Separated from DON-2026-0001','Available'),
+         ('UNT-2026-0006','DON-2026-0003','DNR-2026-0003','Rohan Kulkarni',NULL,'B+','Platelets',250,'Main Hospital Blood Center','Platelet Agitator P2','20°C - 24°C (Agitator)','2026-11-15','2026-11-20','Cleared','Expired platelet unit — blocked from issue','Expired')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO blood_requests (
+         id, patient_id, patient_name, department, requested_blood_group, component,
+         units_requested, units_fulfilled, urgency, requesting_doctor, clinical_indication,
+         status, approved_by
+       ) VALUES
+         ('BRQ-2026-0001','PAT-2026-0003','Meera Patel','Surgery','A+','RBC',1,0,'Urgent','Dr. Sunita Kapoor','Pre-operative surgical reserve for orthopedic procedure','Approved','Blood Bank Officer'),
+         ('BRQ-2026-0002','PAT-2026-0002','Vikram Rao','Emergency','O-','RBC',1,0,'Emergency','Dr. Lin Chen','Acute GI bleed — emergency crossmatch requested','Pending',NULL)
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO blood_compatibility_tests (
+         id, request_id, patient_id, patient_name, patient_blood_group, unit_id, donor_blood_group,
+         component, grouping_confirmed, crossmatch_result, antibody_screen, tested_by,
+         verification_status, verified_by, verified_at, notes
+       ) VALUES (
+         'CMP-2026-0001','BRQ-2026-0001','PAT-2026-0003','Meera Patel','A+','UNT-2026-0001','O-',
+         'RBC',TRUE,'Compatible','Negative','Lab Tech Arjun',
+         'Verified','Dr. N. Verma (Pathologist)',NOW(),'Universal O- RBC crossmatched compatible with A+ recipient'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO blood_audit_logs (id, entity_type, entity_id, action, actor_role, actor_name, details)
+       VALUES
+         ('BAUD-2026-0001','Unit','UNT-2026-0001','Cleared','Laboratory Staff','Lab Tech Arjun','Infectious screening cleared; O- RBC unit moved to Available'),
+         ('BAUD-2026-0002','Compatibility','CMP-2026-0001','Verified','Laboratory Staff','Dr. N. Verma (Pathologist)','Verified crossmatch Compatible for BRQ-2026-0001 with UNT-2026-0001')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 15. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -843,6 +903,13 @@ async function seed() {
       ["billing_claim", 1],
       ["billing_refund", 0],
       ["billing_audit", 3],
+      ["blood_donor", 4],
+      ["blood_donation", 4],
+      ["blood_unit", 6],
+      ["blood_request", 2],
+      ["blood_compatibility", 1],
+      ["blood_transfusion", 0],
+      ["blood_audit", 2],
     ];
     for (const [key, val] of counters) {
       await pool.query(
