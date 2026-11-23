@@ -860,3 +860,100 @@ CREATE TABLE IF NOT EXISTS radiology_reports (
   finalized_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =======================================
+-- MODULE 09: PHARMACY MANAGEMENT
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS pharmacy_suppliers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  contact_person TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT NOT NULL DEFAULT '',
+  address TEXT NOT NULL DEFAULT '',
+  license_number TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Active',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS pharmacy_medicines (
+  id TEXT PRIMARY KEY,
+  medicine_code TEXT NOT NULL UNIQUE,
+  medicine_name TEXT NOT NULL,
+  generic_name TEXT NOT NULL,
+  brand TEXT NOT NULL DEFAULT '',
+  category TEXT NOT NULL,
+  strength TEXT NOT NULL,
+  dosage_form TEXT NOT NULL,
+  manufacturer TEXT NOT NULL,
+  unit_price NUMERIC(10,2) NOT NULL DEFAULT 0,
+  min_stock_threshold INTEGER NOT NULL DEFAULT 20,
+  reserved_qty INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS pharmacy_batches (
+  id TEXT PRIMARY KEY,
+  batch_number TEXT NOT NULL,
+  medicine_id TEXT NOT NULL REFERENCES pharmacy_medicines(id) ON DELETE CASCADE,
+  supplier_id TEXT REFERENCES pharmacy_suppliers(id) ON DELETE SET NULL,
+  manufacturer TEXT NOT NULL,
+  initial_qty INTEGER NOT NULL,
+  remaining_qty INTEGER NOT NULL,
+  purchase_date TEXT NOT NULL,
+  manufacturing_date TEXT NOT NULL,
+  expiry_date TEXT NOT NULL,
+  unit_cost NUMERIC(10,2) NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'Active',
+  expiry_history JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (medicine_id, batch_number)
+);
+
+CREATE TABLE IF NOT EXISTS pharmacy_stock_movements (
+  id TEXT PRIMARY KEY,
+  medicine_id TEXT NOT NULL REFERENCES pharmacy_medicines(id) ON DELETE CASCADE,
+  batch_id TEXT REFERENCES pharmacy_batches(id) ON DELETE SET NULL,
+  movement_type TEXT NOT NULL,
+  quantity_delta INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  performed_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS pharmacy_prescriptions (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  doctor_name TEXT NOT NULL,
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  status TEXT NOT NULL DEFAULT 'Pending',
+  validated_by TEXT,
+  validated_at TIMESTAMPTZ,
+  processing_history JSONB NOT NULL DEFAULT '[]'::jsonb,
+  prescribed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS pharmacy_dispensings (
+  id TEXT PRIMARY KEY,
+  prescription_id TEXT NOT NULL REFERENCES pharmacy_prescriptions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  medicine_id TEXT NOT NULL REFERENCES pharmacy_medicines(id) ON DELETE CASCADE,
+  medicine_name TEXT NOT NULL,
+  batch_id TEXT NOT NULL REFERENCES pharmacy_batches(id) ON DELETE CASCADE,
+  batch_number TEXT NOT NULL,
+  expiry_date TEXT NOT NULL,
+  quantity_dispensed INTEGER NOT NULL,
+  dosage_instructions TEXT NOT NULL DEFAULT '',
+  dispensed_by TEXT NOT NULL,
+  dispensed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

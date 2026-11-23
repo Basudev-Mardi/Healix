@@ -640,7 +640,93 @@ async function seed() {
        ) ON CONFLICT (id) DO NOTHING`
     );
 
-    // 12. Initialize Counters
+    // 12. Seed Pharmacy Management
+    await pool.query(
+      `INSERT INTO pharmacy_suppliers (id, name, contact_person, phone, email, address, license_number, status, notes)
+       VALUES
+         ('SUP-2026-0001','MedCore Pharmaceuticals Ltd','Ramesh Kulkarni','+91-98201-44110','orders@medcorepharma.in','Plot 14, Pharma Park, Pune','DL-MH-2024-8812','Active','Primary acute care and antibiotics distributor'),
+         ('SUP-2026-0002','Apex BioHealth Supplies','Neha Deshmukh','+91-98201-55220','supply@apexbiohealth.in','Sector 9, Industrial Estate, Hyderabad','DL-TS-2024-4419','Active','Cardiology, metabolic, and injectable supplier')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    const pharmacyMeds: [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      number,
+      number,
+    ][] = [
+      ["MED-2026-0001", "AMOX-500", "Amoxicillin 500mg Capsule", "Amoxicillin Trihydrate", "MoxHeal", "Antibiotic", "500 mg", "Capsule", "MedCore Pharma", 1.25, 40],
+      ["MED-2026-0002", "PARA-650", "Paracetamol 650mg Tablet", "Acetaminophen", "DoloCare", "Analgesic", "650 mg", "Tablet", "MedCore Pharma", 0.45, 50],
+      ["MED-2026-0003", "METF-500", "Metformin 500mg SR Tablet", "Metformin HCl", "GlucoSafe", "Antidiabetic", "500 mg", "SR Tablet", "Apex BioHealth", 0.85, 30],
+      ["MED-2026-0004", "ATOR-20", "Atorvastatin 20mg Tablet", "Atorvastatin Calcium", "LipidGuard", "Cardiology", "20 mg", "Tablet", "Apex BioHealth", 1.60, 25],
+      ["MED-2026-0005", "CEFT-1G", "Ceftriaxone 1g Injection", "Ceftriaxone Sodium", "MonoCef", "Injectable Antibiotic", "1 g", "IV Vial", "MedCore Pharma", 6.50, 15],
+    ];
+    for (const row of pharmacyMeds) {
+      await pool.query(
+        `INSERT INTO pharmacy_medicines (
+          id, medicine_code, medicine_name, generic_name, brand, category,
+          strength, dosage_form, manufacturer, unit_price, min_stock_threshold
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        ON CONFLICT (id) DO NOTHING`,
+        row
+      );
+    }
+
+    await pool.query(
+      `INSERT INTO pharmacy_batches (
+         id, batch_number, medicine_id, supplier_id, manufacturer, initial_qty, remaining_qty,
+         purchase_date, manufacturing_date, expiry_date, unit_cost, status, expiry_history
+       ) VALUES
+         ('BCH-2026-0001','AMX-26A','MED-2026-0001','SUP-2026-0001','MedCore Pharma',120,105,'2026-06-01','2026-05-01','2026-12-15',0.80,'Active','[]'::jsonb),
+         ('BCH-2026-0002','AMX-26B','MED-2026-0001','SUP-2026-0001','MedCore Pharma',150,150,'2026-09-10','2026-08-15','2027-08-30',0.82,'Active','[]'::jsonb),
+         ('BCH-2026-0003','PAR-26A','MED-2026-0002','SUP-2026-0001','MedCore Pharma',200,180,'2026-07-01','2026-06-01','2027-06-30',0.22,'Active','[]'::jsonb),
+         ('BCH-2026-0004','MET-26A','MED-2026-0003','SUP-2026-0002','Apex BioHealth',80,18,'2026-05-15','2026-04-20','2027-04-20',0.45,'Active','[]'::jsonb),
+         ('BCH-2026-0005','ATR-25Z','MED-2026-0004','SUP-2026-0002','Apex BioHealth',40,12,'2025-05-01','2025-04-01','2026-10-01',0.95,'Expired','[{"action":"Expired","staff":"System Audit","timestamp":"2026-10-02T00:00:00.000Z","note":"Batch passed expiry date — blocked from dispensing"}]'::jsonb),
+         ('BCH-2026-0006','ATR-26C','MED-2026-0004','SUP-2026-0002','Apex BioHealth',90,90,'2026-10-01','2026-09-01','2028-09-01',0.98,'Active','[]'::jsonb),
+         ('BCH-2026-0007','CEF-26A','MED-2026-0005','SUP-2026-0001','MedCore Pharma',30,10,'2026-08-01','2026-07-10','2026-12-10',4.10,'Active','[]'::jsonb)
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO pharmacy_stock_movements (id, medicine_id, batch_id, movement_type, quantity_delta, balance_after, reason, performed_by)
+       VALUES
+         ('STK-2026-0001','MED-2026-0001','BCH-2026-0001','Received',120,120,'Initial purchase order receipt (SUP-2026-0001)','Pharmacist Ritu'),
+         ('STK-2026-0002','MED-2026-0001','BCH-2026-0001','Dispensed',-15,105,'Dispensed for RX-2026-0001','Pharmacist Ritu')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO pharmacy_prescriptions (id, patient_id, patient_name, doctor_name, items, status, validated_by, validated_at, processing_history)
+       VALUES
+         ('RX-2026-0001','PAT-2026-0001','Ananya Sharma','Dr. Rajesh Mehta',
+          '[{"medicineId":"MED-2026-0001","medicineCode":"AMOX-500","medicineName":"Amoxicillin 500mg Capsule","dosage":"1 capsule","frequency":"TID (3x daily)","duration":"5 days","instructions":"Take after meals","prescribedQty":15,"dispensedQty":15},{"medicineId":"MED-2026-0002","medicineCode":"PARA-650","medicineName":"Paracetamol 650mg Tablet","dosage":"1 tablet","frequency":"PRN q6h","duration":"5 days","instructions":"For fever or pain","prescribedQty":10,"dispensedQty":0}]'::jsonb,
+          'Partially Fulfilled','Pharmacist Ritu',NOW(),
+          '[{"status":"Pending","staff":"Dr. Rajesh Mehta","timestamp":"2026-11-23T08:30:00.000Z","note":"Prescription issued from OPD"},{"status":"Processing","staff":"Pharmacist Ritu","timestamp":"2026-11-23T08:45:00.000Z","note":"Prescription validated for dosage and drug interactions"},{"status":"Partially Fulfilled","staff":"Pharmacist Ritu","timestamp":"2026-11-23T08:50:00.000Z","note":"Dispensed 15x Amoxicillin 500mg from FEFO batch AMX-26A"}]'::jsonb),
+         ('RX-2026-0002','PAT-2026-0002','Vikram Rao','Dr. Lin Chen',
+          '[{"medicineId":"MED-2026-0004","medicineCode":"ATOR-20","medicineName":"Atorvastatin 20mg Tablet","dosage":"1 tablet","frequency":"Once nightly","duration":"30 days","instructions":"Take at bedtime","prescribedQty":30,"dispensedQty":0},{"medicineId":"MED-2026-0003","medicineCode":"METF-500","medicineName":"Metformin 500mg SR Tablet","dosage":"1 tablet","frequency":"BD (2x daily)","duration":"15 days","instructions":"Take with meals","prescribedQty":30,"dispensedQty":0}]'::jsonb,
+          'Pending',NULL,NULL,
+          '[{"status":"Pending","staff":"Dr. Lin Chen","timestamp":"2026-11-23T09:20:00.000Z","note":"Cardiology discharge prescription"}]'::jsonb)
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO pharmacy_dispensings (
+         id, prescription_id, patient_id, patient_name, medicine_id, medicine_name,
+         batch_id, batch_number, expiry_date, quantity_dispensed, dosage_instructions, dispensed_by
+       ) VALUES (
+         'DSP-2026-0001','RX-2026-0001','PAT-2026-0001','Ananya Sharma','MED-2026-0001','Amoxicillin 500mg Capsule',
+         'BCH-2026-0001','AMX-26A','2026-12-15',15,'1 capsule TID x 5 days after meals','Pharmacist Ritu'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 13. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -688,6 +774,12 @@ async function seed() {
       ["radiology_appointment", 2],
       ["radiology_image", 1],
       ["radiology_report", 1],
+      ["pharmacy_supplier", 2],
+      ["pharmacy_medicine", 5],
+      ["pharmacy_batch", 7],
+      ["pharmacy_stock_movement", 2],
+      ["pharmacy_prescription", 2],
+      ["pharmacy_dispensing", 1],
     ];
     for (const [key, val] of counters) {
       await pool.query(

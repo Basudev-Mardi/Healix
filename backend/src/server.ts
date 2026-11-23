@@ -8,6 +8,7 @@ import { ipdRoutes } from "./ipd/routes.js";
 import { labRoutes } from "./lab/routes.js";
 import { opdRoutes } from "./opd/routes.js";
 import { otRoutes } from "./ot/routes.js";
+import { pharmacyRoutes } from "./pharmacy/routes.js";
 import { radiologyRoutes } from "./radiology/routes.js";
 import { wardsBedsRoutes } from "./wards-beds/routes.js";
 
@@ -30,6 +31,7 @@ app.use(
       "x-ot-role",
       "x-lab-role",
       "x-radiology-role",
+      "x-pharmacy-role",
     ],
   })
 );
@@ -58,6 +60,7 @@ app.route("/api/icu", icuRoutes);
 app.route("/api/ot", otRoutes);
 app.route("/api/lab", labRoutes);
 app.route("/api/radiology", radiologyRoutes);
+app.route("/api/pharmacy", pharmacyRoutes);
 
 const port = Number(process.env.PORT || 4000);
 
