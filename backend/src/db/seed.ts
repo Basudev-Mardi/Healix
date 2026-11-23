@@ -549,7 +549,98 @@ async function seed() {
        ON CONFLICT (id) DO NOTHING`
     );
 
-    // 11. Initialize Counters
+    // 11. Seed Radiology Management (RIS)
+    const radEquipment: [string, string, string, string, string][] = [
+      ["EQP-XR-01", "Digital X-Ray Suite A", "X-ray", "Radiology Wing - Room 101", "Available"],
+      ["EQP-XR-02", "Portable X-Ray Unit B", "X-ray", "Emergency & Trauma Bay", "Available"],
+      ["EQP-CT-01", "128-Slice CT Scanner", "CT Scan", "Imaging Center - Room 104", "Available"],
+      ["EQP-MR-01", "3.0 Tesla MRI Scanner", "MRI", "Imaging Center - Suite 108", "Available"],
+      ["EQP-US-01", "High-Res Doppler Ultrasound 1", "Ultrasound", "Radiology Wing - Room 102", "Available"],
+      ["EQP-US-02", "OB/Abdominal Ultrasound 2", "Ultrasound", "Radiology Wing - Room 103", "Available"],
+    ];
+    for (const row of radEquipment) {
+      await pool.query(
+        `INSERT INTO radiology_equipment (id, name, modality, room_location, status)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (id) DO NOTHING`,
+        row
+      );
+    }
+
+    await pool.query(
+      `INSERT INTO radiology_requests (
+         id, examination_id, patient_id, patient_name, modality, exam_type, body_region,
+         clinical_indication, instructions, mri_screening, priority, referring_doctor,
+         assigned_technician, exam_date, exam_time, status
+       ) VALUES
+         ('RAD-2026-0001','EXM-2026-0001','PAT-2026-0002','Vikram Rao','X-ray','Chest PA & Lateral','Chest / Thorax',
+          'Acute chest discomfort and mild dyspnea — evaluate cardiopulmonary silhouette','Remove metallic jewelry before exposure','{}'::jsonb,'STAT','Dr. Lin Chen',
+          'Tech Rohan Das',$1,'09:30','Completed'),
+         ('RAD-2026-0002','EXM-2026-0002','PAT-2026-0001','Ananya Sharma','CT Scan','CT Brain (Non-Contrast)','Head / Brain',
+          'Persistent unilateral headache — rule out intracranial lesion','NPO 4 hours if contrast added; confirm eGFR','{}'::jsonb,'Urgent','Dr. Rajesh Mehta',
+          'Tech Meera Nair',$1,'11:00','Scheduled'),
+         ('RAD-2026-0003','EXM-2026-0003','PAT-2026-0003','Meera Patel','MRI','MRI Lumbar Spine','Lumbar Spine (L1-S1)',
+          'Radiating lower back pain with L5 paresthesia','Remove all ferromagnetic items; ear protection provided',
+          '{"pacemaker":false,"metalImplants":false,"claustrophobia":false,"contrastAllergy":false,"renalCleared":true,"screeningNotes":"Patient screened and cleared for 3T MRI."}'::jsonb,
+          'Routine','Dr. Sunita Kapoor','Tech Kabir Sen',$1,'14:00','Pending'),
+         ('RAD-2026-0004','EXM-2026-0004','PAT-2026-0001','Ananya Sharma','Ultrasound','Abdominal & Pelvic Ultrasound','Abdomen / Pelvis',
+          'Right upper quadrant discomfort — assess gallbladder and biliary tree','Fasting 6 hours prior to scan; full bladder required','{}'::jsonb,'Routine','Dr. Rajesh Mehta',
+          'Tech Sanya Verma',$1,'15:00','Pending')
+       ON CONFLICT (id) DO NOTHING`,
+      [today]
+    );
+
+    await pool.query(
+      `INSERT INTO radiology_appointments (
+         id, request_id, examination_id, patient_id, patient_name, modality, exam_type,
+         equipment_id, equipment_name, appointment_date, time_slot, status, scheduling_history
+       ) VALUES
+         ('RAPT-2026-0001','RAD-2026-0001','EXM-2026-0001','PAT-2026-0002','Vikram Rao','X-ray','Chest PA & Lateral',
+          'EQP-XR-01','Digital X-Ray Suite A',$1,'09:30','Completed',
+          '[{"action":"Scheduled","staff":"Radiology Desk","timestamp":"2026-11-23T08:45:00.000Z","note":"STAT Chest X-ray booked on Digital X-Ray Suite A"}]'::jsonb),
+         ('RAPT-2026-0002','RAD-2026-0002','EXM-2026-0002','PAT-2026-0001','Ananya Sharma','CT Scan','CT Brain (Non-Contrast)',
+          'EQP-CT-01','128-Slice CT Scanner',$1,'11:00','Scheduled',
+          '[{"action":"Scheduled","staff":"Radiology Desk","timestamp":"2026-11-23T09:15:00.000Z","note":"Urgent CT Brain scheduled on 128-Slice CT Scanner"}]'::jsonb)
+       ON CONFLICT (id) DO NOTHING`,
+      [today]
+    );
+
+    const sampleXraySvg =
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" width="640" height="420"><rect width="640" height="420" fill="#0d1418"/><rect x="24" y="24" width="592" height="372" rx="18" fill="#131e24" stroke="#2c444e" stroke-width="2"/><ellipse cx="250" cy="215" rx="95" ry="125" fill="#1c2f38" stroke="#6ea5b5" stroke-width="2" opacity="0.85"/><ellipse cx="390" cy="215" rx="95" ry="125" fill="#1c2f38" stroke="#6ea5b5" stroke-width="2" opacity="0.85"/><rect x="306" y="78" width="28" height="270" rx="12" fill="#2c4550" opacity="0.9"/><text x="44" y="56" fill="#8fc1ce" font-family="monospace" font-size="14">HEALIX RIS • EXM-2026-0001 • CHEST PA</text><text x="44" y="378" fill="#6ab4a4" font-family="monospace" font-size="12">PAT-2026-0002 | VIKRAM RAO | 110 kVp | 2.4 mAs | DIGITAL X-RAY SUITE A</text></svg>`
+      );
+
+    await pool.query(
+      `INSERT INTO radiology_images (
+         id, request_id, examination_id, patient_id, patient_name, modality, exam_type,
+         file_name, mime_type, file_size_bytes, image_data_url, uploaded_by, notes
+       ) VALUES (
+         'IMG-2026-0001','RAD-2026-0001','EXM-2026-0001','PAT-2026-0002','Vikram Rao','X-ray','Chest PA & Lateral',
+         'EXM-2026-0001_chest_pa.svg','image/svg+xml',1024,$1,'Tech Rohan Das',
+         'PA upright chest radiograph — clear bilateral lung fields'
+       ) ON CONFLICT (id) DO NOTHING`,
+      [sampleXraySvg]
+    );
+
+    await pool.query(
+      `INSERT INTO radiology_reports (
+         id, request_id, examination_id, patient_id, patient_name, modality, exam_type, body_region,
+         referring_doctor, image_ids, findings, observations, impression, conclusion,
+         radiologist_name, status, report_history
+       ) VALUES (
+         'RADR-2026-0001','RAD-2026-0001','EXM-2026-0001','PAT-2026-0002','Vikram Rao','X-ray','Chest PA & Lateral','Chest / Thorax',
+         'Dr. Lin Chen',ARRAY['IMG-2026-0001'],
+         'Bilateral lung fields are clear without focal consolidation, pneumothorax, or pleural effusion. Cardiothoracic ratio is within normal limits.',
+         'Trachea is midline. Osseous thorax and visualized soft tissues are unremarkable.',
+         'No acute cardiopulmonary abnormality identified on chest radiograph.',
+         'Correlate clinically with cardiac troponin results and ECG findings.',
+         'Dr. Kavita Rao (Radiologist)','Pending Verification',
+         '[{"status":"Draft","staff":"Dr. Kavita Rao (Radiologist)","timestamp":"2026-11-23T09:50:00.000Z","note":"Initial draft recorded"},{"status":"Pending Verification","staff":"Dr. Kavita Rao (Radiologist)","timestamp":"2026-11-23T09:55:00.000Z","note":"Submitted for final sign-off"}]'::jsonb
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 12. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -592,6 +683,11 @@ async function seed() {
       ["lab_sample", 1],
       ["lab_result", 2],
       ["lab_report", 0],
+      ["radiology_request", 4],
+      ["radiology_exam", 4],
+      ["radiology_appointment", 2],
+      ["radiology_image", 1],
+      ["radiology_report", 1],
     ];
     for (const [key, val] of counters) {
       await pool.query(

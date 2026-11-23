@@ -767,3 +767,96 @@ CREATE TABLE IF NOT EXISTS lab_reports (
   generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   report_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb
 );
+
+-- =======================================
+-- MODULE 08: RADIOLOGY MANAGEMENT (RIS)
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS radiology_equipment (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  modality TEXT NOT NULL,
+  room_location TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Available',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS radiology_requests (
+  id TEXT PRIMARY KEY,
+  examination_id TEXT NOT NULL UNIQUE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  modality TEXT NOT NULL,
+  exam_type TEXT NOT NULL,
+  body_region TEXT NOT NULL,
+  clinical_indication TEXT NOT NULL,
+  instructions TEXT NOT NULL DEFAULT '',
+  mri_screening JSONB NOT NULL DEFAULT '{}'::jsonb,
+  priority TEXT NOT NULL DEFAULT 'Routine',
+  referring_doctor TEXT NOT NULL,
+  assigned_technician TEXT NOT NULL DEFAULT '',
+  exam_date TEXT NOT NULL DEFAULT '',
+  exam_time TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS radiology_appointments (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES radiology_requests(id) ON DELETE CASCADE,
+  examination_id TEXT NOT NULL,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  modality TEXT NOT NULL,
+  exam_type TEXT NOT NULL,
+  equipment_id TEXT NOT NULL REFERENCES radiology_equipment(id),
+  equipment_name TEXT NOT NULL,
+  appointment_date TEXT NOT NULL,
+  time_slot TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Scheduled',
+  cancel_reason TEXT NOT NULL DEFAULT '',
+  scheduling_history JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS radiology_images (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES radiology_requests(id) ON DELETE CASCADE,
+  examination_id TEXT NOT NULL,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  modality TEXT NOT NULL,
+  exam_type TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL DEFAULT 'image/svg+xml',
+  file_size_bytes INTEGER NOT NULL DEFAULT 0,
+  image_data_url TEXT NOT NULL,
+  uploaded_by TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS radiology_reports (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL UNIQUE REFERENCES radiology_requests(id) ON DELETE CASCADE,
+  examination_id TEXT NOT NULL,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  modality TEXT NOT NULL,
+  exam_type TEXT NOT NULL,
+  body_region TEXT NOT NULL,
+  referring_doctor TEXT NOT NULL,
+  image_ids TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  findings TEXT NOT NULL,
+  observations TEXT NOT NULL DEFAULT '',
+  impression TEXT NOT NULL,
+  conclusion TEXT NOT NULL DEFAULT '',
+  radiologist_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Draft',
+  report_history JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  finalized_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

@@ -8,6 +8,7 @@ import { ipdRoutes } from "./ipd/routes.js";
 import { labRoutes } from "./lab/routes.js";
 import { opdRoutes } from "./opd/routes.js";
 import { otRoutes } from "./ot/routes.js";
+import { radiologyRoutes } from "./radiology/routes.js";
 import { wardsBedsRoutes } from "./wards-beds/routes.js";
 
 const app = new Hono();
@@ -28,6 +29,7 @@ app.use(
       "x-icu-role",
       "x-ot-role",
       "x-lab-role",
+      "x-radiology-role",
     ],
   })
 );
@@ -55,6 +57,7 @@ app.route("/api/wards-beds", wardsBedsRoutes);
 app.route("/api/icu", icuRoutes);
 app.route("/api/ot", otRoutes);
 app.route("/api/lab", labRoutes);
+app.route("/api/radiology", radiologyRoutes);
 
 const port = Number(process.env.PORT || 4000);
 
