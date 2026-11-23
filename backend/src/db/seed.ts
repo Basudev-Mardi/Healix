@@ -843,7 +843,75 @@ async function seed() {
        ON CONFLICT (id) DO NOTHING`
     );
 
-    // 15. Initialize Counters
+    // 15. Seed Ambulance Management
+    await pool.query(
+      `INSERT INTO ambulance_vehicles (
+         id, registration_number, vehicle_type, model, capacity, equipment_details,
+         insurance_expiry, fitness_cert_expiry, registration_valid_until,
+         maintenance_status, operational_status, total_trips, total_distance_km
+       ) VALUES
+         ('AMB-2026-0001','MH-12-EM-1081','ALS','Force Traveller ALS ICU',2,'Ventilator, Defibrillator, Oxygen Cylinder, Cardiac Monitor, Suction Unit','2027-06-30','2027-05-15','2029-12-31','Operational','Available',14,248.50),
+         ('AMB-2026-0002','MH-12-EM-1082','BLS','Tata Winger Ambulance',2,'Oxygen Supply, Stretcher, First Aid Trauma Kit, Spine Board','2026-12-10','2027-04-20','2028-11-30','Operational','Available',9,164.00),
+         ('AMB-2026-0003','MH-12-EM-1083','ICU Mobile','Mercedes Sprinter Critical Care',2,'ICU Ventilator, Infusion Pumps, Multipara Monitor, AED','2027-09-01','2026-12-05','2030-01-15','Under Maintenance','Under Maintenance',21,412.20)
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO ambulance_drivers (
+         id, full_name, phone, email, license_number, license_valid_until,
+         experience_years, assigned_vehicle_id, availability_status, employment_status, total_trips
+       ) VALUES
+         ('DRV-2026-0001','Suresh Pawar','+91-98220-11001','suresh.p@healix.org','DL-MH12-2018-9910','2028-08-31',8,'AMB-2026-0001','Available','Active',14),
+         ('DRV-2026-0002','Imran Shaikh','+91-98220-11002','imran.s@healix.org','DL-MH12-2020-4421','2027-10-15',6,'AMB-2026-0002','Available','Active',9),
+         ('DRV-2026-0003','Deepak Jadhav','+91-98220-11003','deepak.j@healix.org','DL-MH12-2016-3318','2026-12-08',10,'AMB-2026-0003','Off-Duty','Active',21)
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO ambulance_requests (
+         id, patient_id, patient_name, contact_number, source_channel, pickup_location,
+         destination_hospital, emergency_type, priority, status
+       ) VALUES
+         ('ARQ-2026-0001','PAT-2026-0002','Vikram Rao','+91-98765-43211','Emergency Dept','Sector 14 Main Highway, Near Metro Gate 2','Healix Main Hospital','Cardiac Chest Pain','Critical','Completed'),
+         ('ARQ-2026-0002','PAT-2026-0001','Ananya Sharma','+91-98765-43210','External Call 108','Green Park Residency, Block B','Healix Main Hospital','Acute Respiratory Distress','High','Requested')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO ambulance_dispatches (
+         id, request_id, ambulance_id, registration_number, driver_id, driver_name,
+         pickup_location, destination_hospital, estimated_arrival_mins, status,
+         assigned_at, dispatched_at, arrived_pickup_at, patient_onboard_at, arrived_hospital_at, completed_at, status_timeline
+       ) VALUES (
+         'DSP-AMB-2026-0001','ARQ-2026-0001','AMB-2026-0001','MH-12-EM-1081','DRV-2026-0001','Suresh Pawar',
+         'Sector 14 Main Highway, Near Metro Gate 2','Healix Main Hospital',12,'Completed',
+         NOW() - INTERVAL '90 minutes', NOW() - INTERVAL '88 minutes', NOW() - INTERVAL '76 minutes',
+         NOW() - INTERVAL '70 minutes', NOW() - INTERVAL '55 minutes', NOW() - INTERVAL '50 minutes',
+         '[{"status":"Assigned","staff":"Ambulance Coordinator","timestamp":"2026-11-23T08:00:00.000Z","note":"Assigned ALS AMB-2026-0001"},{"status":"Dispatched","staff":"Suresh Pawar","timestamp":"2026-11-23T08:02:00.000Z","note":"En route to pickup"},{"status":"Completed","staff":"Suresh Pawar","timestamp":"2026-11-23T08:40:00.000Z","note":"Patient handed over to ER Trauma Bay"}]'::jsonb
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO ambulance_trips (
+         id, dispatch_id, request_id, ambulance_id, registration_number, driver_id, driver_name,
+         patient_name, pickup_location, dropoff_location, departure_time, arrival_time,
+         distance_km, duration_mins, fuel_used_liters, trip_status, remarks
+       ) VALUES (
+         'TRP-2026-0001','DSP-AMB-2026-0001','ARQ-2026-0001','AMB-2026-0001','MH-12-EM-1081','DRV-2026-0001','Suresh Pawar',
+         'Vikram Rao','Sector 14 Main Highway, Near Metro Gate 2','Healix Main Hospital',
+         NOW() - INTERVAL '88 minutes', NOW() - INTERVAL '55 minutes', 14.6, 33, 2.4, 'Completed',
+         'Patient stabilized on oxygen en route; handed over to ER triage.'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO ambulance_audit_logs (id, entity_type, entity_id, action, actor_role, actor_name, details)
+       VALUES
+         ('AAUD-2026-0001','Dispatch','DSP-AMB-2026-0001','Completed','Ambulance Coordinator','Dispatch Desk','Completed emergency cardiac transfer TRP-2026-0001 (14.6 km, 33 mins)')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 16. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -910,6 +978,12 @@ async function seed() {
       ["blood_compatibility", 1],
       ["blood_transfusion", 0],
       ["blood_audit", 2],
+      ["ambulance_vehicle", 3],
+      ["ambulance_driver", 3],
+      ["ambulance_request", 2],
+      ["ambulance_dispatch", 1],
+      ["ambulance_trip", 1],
+      ["ambulance_audit", 1],
     ];
     for (const [key, val] of counters) {
       await pool.query(

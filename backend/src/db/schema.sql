@@ -1174,3 +1174,111 @@ CREATE TABLE IF NOT EXISTS blood_audit_logs (
   details TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =======================================
+-- MODULE 12: AMBULANCE MANAGEMENT
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS ambulance_vehicles (
+  id TEXT PRIMARY KEY,
+  registration_number TEXT NOT NULL UNIQUE,
+  vehicle_type TEXT NOT NULL,
+  model TEXT NOT NULL,
+  capacity INTEGER NOT NULL DEFAULT 2,
+  equipment_details TEXT NOT NULL DEFAULT '',
+  insurance_expiry TEXT NOT NULL,
+  fitness_cert_expiry TEXT NOT NULL,
+  registration_valid_until TEXT NOT NULL,
+  maintenance_status TEXT NOT NULL DEFAULT 'Operational',
+  operational_status TEXT NOT NULL DEFAULT 'Available',
+  assigned_driver_id TEXT,
+  total_trips INTEGER NOT NULL DEFAULT 0,
+  total_distance_km NUMERIC(10,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ambulance_drivers (
+  id TEXT PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT NOT NULL DEFAULT '',
+  license_number TEXT NOT NULL UNIQUE,
+  license_valid_until TEXT NOT NULL,
+  experience_years INTEGER NOT NULL DEFAULT 2,
+  assigned_vehicle_id TEXT,
+  availability_status TEXT NOT NULL DEFAULT 'Available',
+  employment_status TEXT NOT NULL DEFAULT 'Active',
+  total_trips INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ambulance_requests (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT REFERENCES patients(id) ON DELETE SET NULL,
+  patient_name TEXT NOT NULL,
+  contact_number TEXT NOT NULL,
+  source_channel TEXT NOT NULL DEFAULT 'Emergency Dept',
+  pickup_location TEXT NOT NULL,
+  destination_hospital TEXT NOT NULL DEFAULT 'Healix Main Hospital',
+  emergency_type TEXT NOT NULL,
+  priority TEXT NOT NULL DEFAULT 'High',
+  status TEXT NOT NULL DEFAULT 'Requested',
+  cancel_reason TEXT NOT NULL DEFAULT '',
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ambulance_dispatches (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL UNIQUE REFERENCES ambulance_requests(id) ON DELETE CASCADE,
+  ambulance_id TEXT NOT NULL REFERENCES ambulance_vehicles(id),
+  registration_number TEXT NOT NULL,
+  driver_id TEXT NOT NULL REFERENCES ambulance_drivers(id),
+  driver_name TEXT NOT NULL,
+  pickup_location TEXT NOT NULL,
+  destination_hospital TEXT NOT NULL,
+  estimated_arrival_mins INTEGER NOT NULL DEFAULT 15,
+  status TEXT NOT NULL DEFAULT 'Assigned',
+  assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  dispatched_at TIMESTAMPTZ,
+  arrived_pickup_at TIMESTAMPTZ,
+  patient_onboard_at TIMESTAMPTZ,
+  arrived_hospital_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  status_timeline JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ambulance_trips (
+  id TEXT PRIMARY KEY,
+  dispatch_id TEXT NOT NULL UNIQUE REFERENCES ambulance_dispatches(id) ON DELETE CASCADE,
+  request_id TEXT NOT NULL,
+  ambulance_id TEXT NOT NULL REFERENCES ambulance_vehicles(id),
+  registration_number TEXT NOT NULL,
+  driver_id TEXT NOT NULL REFERENCES ambulance_drivers(id),
+  driver_name TEXT NOT NULL,
+  patient_name TEXT NOT NULL,
+  pickup_location TEXT NOT NULL,
+  dropoff_location TEXT NOT NULL,
+  departure_time TIMESTAMPTZ NOT NULL,
+  arrival_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  distance_km NUMERIC(8,2) NOT NULL DEFAULT 0,
+  duration_mins INTEGER NOT NULL DEFAULT 0,
+  fuel_used_liters NUMERIC(6,2) NOT NULL DEFAULT 0,
+  trip_status TEXT NOT NULL DEFAULT 'Completed',
+  remarks TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ambulance_audit_logs (
+  id TEXT PRIMARY KEY,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  actor_role TEXT NOT NULL,
+  actor_name TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
