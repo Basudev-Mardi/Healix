@@ -957,3 +957,105 @@ CREATE TABLE IF NOT EXISTS pharmacy_dispensings (
   dispensed_by TEXT NOT NULL,
   dispensed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =======================================
+-- MODULE 10: BILLING & FINANCE MANAGEMENT
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS billing_insurance_providers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  tpa_code TEXT NOT NULL DEFAULT '',
+  contact_phone TEXT NOT NULL DEFAULT '',
+  contact_email TEXT NOT NULL DEFAULT '',
+  coverage_notes TEXT NOT NULL DEFAULT '',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS billing_invoices (
+  id TEXT PRIMARY KEY,
+  bill_number TEXT NOT NULL UNIQUE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  source_reference_id TEXT NOT NULL DEFAULT '',
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  subtotal NUMERIC(12,2) NOT NULL DEFAULT 0,
+  discount_percent NUMERIC(5,2) NOT NULL DEFAULT 0,
+  discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  tax_percent NUMERIC(5,2) NOT NULL DEFAULT 0,
+  tax_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  total_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  deposit_applied NUMERIC(12,2) NOT NULL DEFAULT 0,
+  paid_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  refunded_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  outstanding_balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'Unpaid',
+  due_date TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  created_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS billing_payments (
+  id TEXT PRIMARY KEY,
+  invoice_id TEXT NOT NULL REFERENCES billing_invoices(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  amount NUMERIC(12,2) NOT NULL,
+  payment_type TEXT NOT NULL DEFAULT 'Full',
+  payment_method TEXT NOT NULL,
+  reference_number TEXT NOT NULL DEFAULT '',
+  received_by TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  paid_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS billing_insurance_claims (
+  id TEXT PRIMARY KEY,
+  invoice_id TEXT NOT NULL REFERENCES billing_invoices(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  provider_id TEXT NOT NULL REFERENCES billing_insurance_providers(id),
+  provider_name TEXT NOT NULL,
+  policy_number TEXT NOT NULL,
+  coverage_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  pre_auth_number TEXT NOT NULL DEFAULT '',
+  claimed_amount NUMERIC(12,2) NOT NULL,
+  approved_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  settled_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'Submitted',
+  rejection_reason TEXT NOT NULL DEFAULT '',
+  submitted_by TEXT NOT NULL,
+  history JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS billing_refunds (
+  id TEXT PRIMARY KEY,
+  invoice_id TEXT NOT NULL REFERENCES billing_invoices(id) ON DELETE CASCADE,
+  payment_id TEXT REFERENCES billing_payments(id) ON DELETE SET NULL,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  refund_type TEXT NOT NULL DEFAULT 'Partial',
+  amount NUMERIC(12,2) NOT NULL,
+  refund_method TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  authorized_by TEXT NOT NULL,
+  processed_by TEXT NOT NULL,
+  refunded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS billing_audit_logs (
+  id TEXT PRIMARY KEY,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  actor_role TEXT NOT NULL,
+  actor_name TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

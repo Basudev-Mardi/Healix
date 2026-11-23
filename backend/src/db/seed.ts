@@ -726,7 +726,64 @@ async function seed() {
        ) ON CONFLICT (id) DO NOTHING`
     );
 
-    // 13. Initialize Counters
+    // 13. Seed Billing & Finance Management
+    await pool.query(
+      `INSERT INTO billing_insurance_providers (id, name, tpa_code, contact_phone, contact_email, coverage_notes)
+       VALUES
+         ('INS-2026-0001','StarHealth Shield TPA','TPA-SH-101','+91-1800-102-4477','claims@starhealthshield.in','Cashless IPD, Surgery & Diagnostics up to 80% coverage'),
+         ('INS-2026-0002','MediAssist Prime Care','TPA-MA-204','+91-1800-425-9449','preauth@mediassistprime.in','Corporate & Family Floater plans with 24h pre-auth')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO billing_invoices (
+         id, bill_number, patient_id, patient_name, category, source_reference_id, items,
+         subtotal, discount_percent, discount_amount, tax_percent, tax_amount, total_amount,
+         deposit_applied, paid_amount, refunded_amount, outstanding_balance, status, due_date, notes, created_by
+       ) VALUES
+         ('INV-2026-0001','BILL-2026-0001','PAT-2026-0001','Ananya Sharma','OPD','APT-2026-0001',
+          '[{"description":"OPD Consultation — Dr. Rajesh Mehta","code":"OPD-CONS","quantity":1,"unitPrice":60,"lineTotal":60},{"description":"ECG & Vitals Screening","code":"OPD-ECG","quantity":1,"unitPrice":25,"lineTotal":25}]'::jsonb,
+          85.00, 10.00, 8.50, 5.00, 3.83, 80.33, 0.00, 80.33, 0.00, 0.00, 'Paid', $1, 'OPD visit settled at front desk', 'Billing Officer Priya'),
+         ('INV-2026-0002','BILL-2026-0002','PAT-2026-0002','Vikram Rao','Laboratory','LAB-2026-0001',
+          '[{"description":"Complete Blood Count (Hemoglobin)","code":"CBC-01","quantity":1,"unitPrice":25,"lineTotal":25},{"description":"High-Sensitivity Cardiac Troponin I","code":"TROP-I","quantity":1,"unitPrice":65,"lineTotal":65}]'::jsonb,
+          90.00, 0.00, 0.00, 5.00, 4.50, 94.50, 0.00, 50.00, 0.00, 44.50, 'Partially Paid', $1, 'Advance deposit received at lab counter', 'Billing Officer Priya'),
+         ('INV-2026-0003','BILL-2026-0003','PAT-2026-0003','Meera Patel','Surgery','SUR-2026-0001',
+          '[{"description":"Operation Theatre Suite & Monitoring","code":"OT-SUITE","quantity":1,"unitPrice":450,"lineTotal":450},{"description":"Primary Surgeon Fee — Dr. Sunita Kapoor","code":"SRG-FEE","quantity":1,"unitPrice":1200,"lineTotal":1200},{"description":"Anesthesia Services — Dr. Maya Roy","code":"ANES-FEE","quantity":1,"unitPrice":350,"lineTotal":350},{"description":"Surgical Consumables & Implants","code":"OT-CONS","quantity":1,"unitPrice":250,"lineTotal":250}]'::jsonb,
+          2250.00, 0.00, 0.00, 5.00, 112.50, 2362.50, 500.00, 500.00, 0.00, 1862.50, 'Partially Paid', $1, 'Insurance pre-auth submitted for balance', 'Finance Manager Arjun')
+       ON CONFLICT (id) DO NOTHING`,
+      [today]
+    );
+
+    await pool.query(
+      `INSERT INTO billing_payments (id, invoice_id, patient_id, patient_name, amount, payment_type, payment_method, reference_number, received_by, notes)
+       VALUES
+         ('PAY-2026-0001','INV-2026-0001','PAT-2026-0001','Ananya Sharma',80.33,'Full','UPI','UPI-8841209','Billing Officer Priya','Full OPD payment via UPI'),
+         ('PAY-2026-0002','INV-2026-0002','PAT-2026-0002','Vikram Rao',50.00,'Partial','Card','CARD-441092','Billing Officer Priya','Partial payment at lab desk'),
+         ('PAY-2026-0003','INV-2026-0003','PAT-2026-0003','Meera Patel',500.00,'Advance','Bank Transfer','NEFT-772104','Finance Manager Arjun','Surgery admission deposit')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO billing_insurance_claims (
+         id, invoice_id, patient_id, patient_name, provider_id, provider_name, policy_number,
+         coverage_verified, pre_auth_number, claimed_amount, approved_amount, settled_amount, status, submitted_by, history
+       ) VALUES (
+         'CLM-2026-0001','INV-2026-0003','PAT-2026-0003','Meera Patel','INS-2026-0001','StarHealth Shield TPA','SH-POL-994210',
+         TRUE,'PA-2026-8812',1862.50,1500.00,0.00,'Approved','Finance Manager Arjun',
+         '[{"status":"Submitted","staff":"Finance Manager Arjun","timestamp":"2026-11-23T09:00:00.000Z","note":"Pre-auth PA-2026-8812 verified and claim submitted"},{"status":"Approved","staff":"StarHealth Shield TPA","timestamp":"2026-11-23T10:15:00.000Z","note":"Approved $1,500.00 toward surgery balance"}]'::jsonb
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO billing_audit_logs (id, entity_type, entity_id, action, actor_role, actor_name, details)
+       VALUES
+         ('AUD-2026-0001','Invoice','INV-2026-0001','Created','Billing Staff','Billing Officer Priya','Generated OPD invoice BILL-2026-0001 for $80.33'),
+         ('AUD-2026-0002','Payment','PAY-2026-0001','Collected','Billing Staff','Billing Officer Priya','Collected $80.33 via UPI for INV-2026-0001'),
+         ('AUD-2026-0003','Claim','CLM-2026-0001','Approved','Finance Manager','Finance Manager Arjun','Insurance claim CLM-2026-0001 approved for $1500.00')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 14. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -780,6 +837,12 @@ async function seed() {
       ["pharmacy_stock_movement", 2],
       ["pharmacy_prescription", 2],
       ["pharmacy_dispensing", 1],
+      ["billing_provider", 2],
+      ["billing_invoice", 3],
+      ["billing_payment", 3],
+      ["billing_claim", 1],
+      ["billing_refund", 0],
+      ["billing_audit", 3],
     ];
     for (const [key, val] of counters) {
       await pool.query(

@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { billingRoutes } from "./billing/routes.js";
 import { getPool } from "./db/client.js";
 import { emergencyRoutes } from "./emergency/routes.js";
 import { icuRoutes } from "./icu/routes.js";
@@ -32,6 +33,7 @@ app.use(
       "x-lab-role",
       "x-radiology-role",
       "x-pharmacy-role",
+      "x-billing-role",
     ],
   })
 );
@@ -61,6 +63,7 @@ app.route("/api/ot", otRoutes);
 app.route("/api/lab", labRoutes);
 app.route("/api/radiology", radiologyRoutes);
 app.route("/api/pharmacy", pharmacyRoutes);
+app.route("/api/billing", billingRoutes);
 
 const port = Number(process.env.PORT || 4000);
 
