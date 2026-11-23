@@ -420,3 +420,135 @@ CREATE TABLE IF NOT EXISTS bed_cleaning_logs (
   completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =========================
+-- MODULE 05: ICU MANAGEMENT
+-- =========================
+
+CREATE TABLE IF NOT EXISTS icu_admissions (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  admission_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reason TEXT NOT NULL,
+  diagnosis TEXT NOT NULL,
+  referring_doctor TEXT NOT NULL,
+  icu_ward TEXT NOT NULL DEFAULT 'ICU Wing',
+  bed_id TEXT NOT NULL REFERENCES ipd_beds(id),
+  bed_label TEXT NOT NULL,
+  care_team TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS icu_monitoring_records (
+  id TEXT PRIMARY KEY,
+  icu_admission_id TEXT NOT NULL REFERENCES icu_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  responsible_staff TEXT NOT NULL,
+  patient_condition TEXT NOT NULL DEFAULT 'Critical',
+  monitoring_status TEXT NOT NULL DEFAULT 'Continuous Telemetry',
+  neurological_status TEXT NOT NULL DEFAULT 'Alert & Oriented',
+  fluid_balance TEXT NOT NULL DEFAULT 'Balanced',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS icu_vital_thresholds (
+  id TEXT PRIMARY KEY,
+  systolic_min INTEGER NOT NULL DEFAULT 90,
+  systolic_max INTEGER NOT NULL DEFAULT 140,
+  heart_rate_min INTEGER NOT NULL DEFAULT 55,
+  heart_rate_max INTEGER NOT NULL DEFAULT 110,
+  resp_rate_min INTEGER NOT NULL DEFAULT 10,
+  resp_rate_max INTEGER NOT NULL DEFAULT 24,
+  temp_min NUMERIC(5,2) NOT NULL DEFAULT 96.5,
+  temp_max NUMERIC(5,2) NOT NULL DEFAULT 100.4,
+  spo2_min INTEGER NOT NULL DEFAULT 92,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS icu_vital_signs (
+  id TEXT PRIMARY KEY,
+  icu_admission_id TEXT NOT NULL REFERENCES icu_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  measured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  responsible_staff TEXT NOT NULL,
+  systolic_bp INTEGER NOT NULL,
+  diastolic_bp INTEGER NOT NULL,
+  heart_rate INTEGER NOT NULL,
+  respiratory_rate INTEGER NOT NULL,
+  temperature_f NUMERIC(5,2) NOT NULL,
+  spo2 INTEGER NOT NULL,
+  is_abnormal BOOLEAN NOT NULL DEFAULT FALSE,
+  abnormal_flags TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS icu_care_notes (
+  id TEXT PRIMARY KEY,
+  icu_admission_id TEXT NOT NULL REFERENCES icu_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  author_name TEXT NOT NULL,
+  author_role TEXT NOT NULL,
+  patient_condition TEXT NOT NULL,
+  clinical_observations TEXT NOT NULL,
+  diagnosis_update TEXT NOT NULL DEFAULT '',
+  treatment_update TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS icu_ventilator_records (
+  id TEXT PRIMARY KEY,
+  icu_admission_id TEXT NOT NULL REFERENCES icu_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  responsible_staff TEXT NOT NULL,
+  ventilator_status TEXT NOT NULL DEFAULT 'Active',
+  mode TEXT NOT NULL DEFAULT 'AC/VC',
+  fio2_percent INTEGER NOT NULL DEFAULT 40,
+  peep_cmh2o INTEGER NOT NULL DEFAULT 5,
+  tidal_volume_ml INTEGER NOT NULL DEFAULT 450,
+  resp_rate_set INTEGER NOT NULL DEFAULT 14,
+  observations TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS icu_medications (
+  id TEXT PRIMARY KEY,
+  icu_admission_id TEXT NOT NULL REFERENCES icu_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  medication_name TEXT NOT NULL,
+  dosage TEXT NOT NULL,
+  route TEXT NOT NULL,
+  frequency TEXT NOT NULL,
+  scheduled_time TEXT NOT NULL,
+  actual_administered_at TIMESTAMPTZ,
+  administering_staff TEXT,
+  status TEXT NOT NULL DEFAULT 'Pending',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS icu_dispositions (
+  id TEXT PRIMARY KEY,
+  icu_admission_id TEXT NOT NULL REFERENCES icu_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  disposition_type TEXT NOT NULL,
+  destination TEXT NOT NULL,
+  target_bed_id TEXT,
+  reason TEXT NOT NULL,
+  responsible_doctor TEXT NOT NULL,
+  handover_details TEXT NOT NULL DEFAULT '',
+  discharge_condition TEXT NOT NULL DEFAULT '',
+  discharge_instructions TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Requested',
+  approved_by TEXT,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

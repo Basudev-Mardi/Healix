@@ -353,7 +353,82 @@ async function seed() {
        ON CONFLICT (id) DO NOTHING`
     );
 
-    // 8. Initialize Counters
+    // 8. Seed ICU Management Beds, Thresholds & Initial Critical Care Case
+    const extraIcuBeds: [string, string, string, string, string, string, string, string, string | null][] = [
+      ["BED-ICU02", "WRD-004", "Critical Care", "ICU Wing", "ICU Bay 2", "ICU-02", "ICU", "Occupied", "ICU-2026-0001"],
+      ["BED-ICU03", "WRD-004", "Critical Care", "ICU Wing", "ICU Bay 3", "ICU-03", "ICU", "Available", null],
+      ["BED-ICU04", "WRD-004", "Critical Care", "ICU Wing", "ICU Bay 4", "ICU-04", "ICU", "Available", null],
+    ];
+    for (const row of extraIcuBeds) {
+      await pool.query(
+        `INSERT INTO ipd_beds (id, ward_id, department, ward, room, bed_number, bed_type, status, current_admission_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (id) DO NOTHING`,
+        row
+      );
+    }
+
+    await pool.query(
+      `INSERT INTO icu_vital_thresholds (id, systolic_min, systolic_max, heart_rate_min, heart_rate_max, resp_rate_min, resp_rate_max, temp_min, temp_max, spo2_min)
+       VALUES ('default', 90, 140, 55, 110, 10, 24, 96.5, 100.4, 92)
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO icu_admissions (id, patient_id, patient_name, reason, diagnosis, referring_doctor, icu_ward, bed_id, bed_label, care_team, status)
+       VALUES (
+         'ICU-2026-0001','PAT-2026-0002','Vikram Rao',
+         'Post-PCI hemodynamic instability requiring vasopressor & ventilator support',
+         'Acute Decompensated Heart Failure with Hypoxemic Respiratory Failure',
+         'Dr. Lin Chen','ICU Wing','BED-ICU02','ICU Wing / ICU Bay 2 / ICU-02',
+         'Dr. Arjun Sen (Intensivist), Nurse Rohan Das (ICU RN)','Active'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO icu_monitoring_records (id, icu_admission_id, patient_id, responsible_staff, patient_condition, monitoring_status, neurological_status, fluid_balance, notes)
+       VALUES (
+         'MON-2026-0001','ICU-2026-0001','PAT-2026-0002','Nurse Rohan Das',
+         'Critical','1:1 Nursing','Sedated (RASS -2), pupils equal & reactive',
+         '+320 mL / 12h','Arterial line & continuous ECG telemetry active; titrating norepinephrine to MAP >= 65.'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO icu_vital_signs (id, icu_admission_id, patient_id, responsible_staff, systolic_bp, diastolic_bp, heart_rate, respiratory_rate, temperature_f, spo2, is_abnormal, abnormal_flags)
+       VALUES
+         ('VIT-2026-0001','ICU-2026-0001','PAT-2026-0002','Nurse Rohan Das',88,56,116,26,99.2,90,TRUE,ARRAY['Low Systolic BP (< 90)','High Heart Rate (> 110)','High Resp Rate (> 24)','Low SpO2 (< 92%)']),
+         ('VIT-2026-0002','ICU-2026-0001','PAT-2026-0002','Nurse Rohan Das',104,66,98,20,98.8,95,FALSE,ARRAY[]::TEXT[])
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO icu_care_notes (id, icu_admission_id, patient_id, author_name, author_role, patient_condition, clinical_observations, diagnosis_update, treatment_update)
+       VALUES (
+         'CCN-2026-0001','ICU-2026-0001','PAT-2026-0002','Dr. Arjun Sen','Doctor',
+         'Stabilizing','MAP improved to 78 mmHg on low-dose norepinephrine; oxygenation improved on FiO2 45%.',
+         'Cardiogenic pulmonary edema responding to diuresis',
+         'Continue IV Furosemide infusion; plan spontaneous breathing trial tomorrow morning if stable.'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO icu_ventilator_records (id, icu_admission_id, patient_id, responsible_staff, ventilator_status, mode, fio2_percent, peep_cmh2o, tidal_volume_ml, resp_rate_set, observations)
+       VALUES (
+         'VNT-2026-0001','ICU-2026-0001','PAT-2026-0002','ICU Respiratory Therapist',
+         'Active','AC/VC',45,8,440,16,'Good synchrony, peak airway pressure 24 cmH2O, ABG pH 7.38.'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO icu_medications (id, icu_admission_id, patient_id, medication_name, dosage, route, frequency, scheduled_time, actual_administered_at, administering_staff, status, notes)
+       VALUES
+         ('MAR-2026-0001','ICU-2026-0001','PAT-2026-0002','Norepinephrine Infusion','0.08 mcg/kg/min','IV Continuous','Continuous','08:00',NOW(),'Nurse Rohan Das','Administered','Titrated to MAP >= 65 mmHg'),
+         ('MAR-2026-0002','ICU-2026-0001','PAT-2026-0002','Furosemide','40 mg','IV Push','q12h','14:00',NULL,NULL,'Pending','Check serum potassium prior to dose')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 9. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -375,9 +450,16 @@ async function seed() {
       ["ipd_discharge", 0],
       ["ipd_discharge_summary", 0],
       ["ward", 5],
-      ["bed", 10],
+      ["bed", 13],
       ["bed_allocation", 1],
       ["bed_cleaning", 1],
+      ["icu_admission", 1],
+      ["icu_monitoring", 1],
+      ["icu_vitals", 2],
+      ["icu_care_note", 1],
+      ["icu_ventilator", 1],
+      ["icu_medication", 2],
+      ["icu_disposition", 0],
     ];
     for (const [key, val] of counters) {
       await pool.query(

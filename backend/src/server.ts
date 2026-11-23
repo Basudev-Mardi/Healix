@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { getPool } from "./db/client.js";
 import { emergencyRoutes } from "./emergency/routes.js";
+import { icuRoutes } from "./icu/routes.js";
 import { ipdRoutes } from "./ipd/routes.js";
 import { opdRoutes } from "./opd/routes.js";
 import { wardsBedsRoutes } from "./wards-beds/routes.js";
@@ -22,6 +23,7 @@ app.use(
       "x-emergency-role",
       "x-ipd-role",
       "x-ward-role",
+      "x-icu-role",
     ],
   })
 );
@@ -46,6 +48,7 @@ app.route("/api/opd", opdRoutes);
 app.route("/api/emergency", emergencyRoutes);
 app.route("/api/ipd", ipdRoutes);
 app.route("/api/wards-beds", wardsBedsRoutes);
+app.route("/api/icu", icuRoutes);
 
 const port = Number(process.env.PORT || 4000);
 
