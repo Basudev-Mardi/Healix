@@ -302,7 +302,58 @@ async function seed() {
        ) ON CONFLICT (id) DO NOTHING`
     );
 
-    // 7. Initialize Counters
+    // 7. Seed Ward & Bed Management Configuration & Isolation Beds
+    const wards: [string, string, string, string, string, number, boolean][] = [
+      ["WRD-001", "Ward A", "General", "General Medicine", "Wing A - Floor 1", 12, true],
+      ["WRD-002", "Ward B", "Cardiac", "Cardiology", "Wing B - Floor 2", 10, true],
+      ["WRD-003", "Ward C", "Orthopedic", "Orthopedics", "Wing C - Floor 3", 10, true],
+      ["WRD-004", "ICU Wing", "ICU", "Critical Care", "Critical Care Block - Floor 2", 8, true],
+      ["WRD-005", "Isolation Wing", "Isolation", "Infectious Disease", "Wing D - Negative Pressure Unit", 6, true],
+    ];
+    for (const row of wards) {
+      await pool.query(
+        `INSERT INTO wards (id, name, ward_type, department, location, capacity, is_active)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         ON CONFLICT (id) DO NOTHING`,
+        row
+      );
+    }
+
+    // Link existing IPD beds to ward IDs
+    await pool.query(`UPDATE ipd_beds SET ward_id = 'WRD-001' WHERE ward = 'Ward A' AND ward_id IS NULL`);
+    await pool.query(`UPDATE ipd_beds SET ward_id = 'WRD-002' WHERE ward = 'Ward B' AND ward_id IS NULL`);
+    await pool.query(`UPDATE ipd_beds SET ward_id = 'WRD-003' WHERE ward = 'Ward C' AND ward_id IS NULL`);
+    await pool.query(`UPDATE ipd_beds SET ward_id = 'WRD-004' WHERE ward = 'ICU Wing' AND ward_id IS NULL`);
+
+    // Add dedicated Isolation Beds
+    const isolationBeds: [string, string, string, string, string, string, string, string, boolean, string, string][] = [
+      ["BED-ISO01", "WRD-005", "Infectious Disease", "Isolation Wing", "Iso Room 401", "ISO-401", "Isolation", "Available", true, "Airborne / Negative Pressure", "Cleaned"],
+      ["BED-ISO02", "WRD-005", "Infectious Disease", "Isolation Wing", "Iso Room 402", "ISO-402", "Isolation", "Under Cleaning", true, "Contact / Droplet", "Pending Cleaning"],
+    ];
+    for (const row of isolationBeds) {
+      await pool.query(
+        `INSERT INTO ipd_beds (id, ward_id, department, ward, room, bed_number, bed_type, status, is_isolation, isolation_type, cleaning_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         ON CONFLICT (id) DO NOTHING`,
+        row
+      );
+    }
+
+    // Seed initial active bed allocation for ADM-2026-0001
+    await pool.query(
+      `INSERT INTO bed_allocations (id, bed_id, admission_id, patient_id, patient_name, ward_name, room, bed_number, is_isolation, allocated_by, status)
+       VALUES ('BAL-2026-0001','BED-A101','ADM-2026-0001','PAT-2026-0001','Ananya Sharma','Ward A','Room 101','A-101',FALSE,'Ward Manager','Active')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    // Seed initial pending isolation cleaning log for BED-ISO02
+    await pool.query(
+      `INSERT INTO bed_cleaning_logs (id, bed_id, ward_name, bed_number, is_isolation_bed, cleaning_status, sanitization_protocol, responsible_staff, notes)
+       VALUES ('CLN-2026-0001','BED-ISO02','Isolation Wing','ISO-402',TRUE,'Pending Cleaning','Isolation UV-C + Sporicidal','Housekeeping Team Alpha','Post-discharge terminal isolation disinfection required before reuse')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 8. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -323,6 +374,10 @@ async function seed() {
       ["ipd_treatment_plan", 1],
       ["ipd_discharge", 0],
       ["ipd_discharge_summary", 0],
+      ["ward", 5],
+      ["bed", 10],
+      ["bed_allocation", 1],
+      ["bed_cleaning", 1],
     ];
     for (const [key, val] of counters) {
       await pool.query(

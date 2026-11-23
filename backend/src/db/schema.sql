@@ -366,3 +366,57 @@ CREATE TABLE IF NOT EXISTS ipd_discharge_summaries (
   authorized_by TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =======================================
+-- MODULE 04: WARD & BED MANAGEMENT
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS wards (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  ward_type TEXT NOT NULL,
+  department TEXT NOT NULL,
+  location TEXT NOT NULL,
+  capacity INTEGER NOT NULL DEFAULT 10,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE ipd_beds ADD COLUMN IF NOT EXISTS ward_id TEXT;
+ALTER TABLE ipd_beds ADD COLUMN IF NOT EXISTS is_isolation BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE ipd_beds ADD COLUMN IF NOT EXISTS isolation_type TEXT NOT NULL DEFAULT '';
+ALTER TABLE ipd_beds ADD COLUMN IF NOT EXISTS isolation_reason TEXT NOT NULL DEFAULT '';
+ALTER TABLE ipd_beds ADD COLUMN IF NOT EXISTS cleaning_status TEXT NOT NULL DEFAULT 'Cleaned';
+
+CREATE TABLE IF NOT EXISTS bed_allocations (
+  id TEXT PRIMARY KEY,
+  bed_id TEXT NOT NULL REFERENCES ipd_beds(id) ON DELETE CASCADE,
+  admission_id TEXT NOT NULL REFERENCES ipd_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  ward_name TEXT NOT NULL,
+  room TEXT NOT NULL,
+  bed_number TEXT NOT NULL,
+  is_isolation BOOLEAN NOT NULL DEFAULT FALSE,
+  isolation_reason TEXT NOT NULL DEFAULT '',
+  allocated_by TEXT NOT NULL,
+  allocated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  released_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'Active'
+);
+
+CREATE TABLE IF NOT EXISTS bed_cleaning_logs (
+  id TEXT PRIMARY KEY,
+  bed_id TEXT NOT NULL REFERENCES ipd_beds(id) ON DELETE CASCADE,
+  ward_name TEXT NOT NULL,
+  bed_number TEXT NOT NULL,
+  is_isolation_bed BOOLEAN NOT NULL DEFAULT FALSE,
+  cleaning_status TEXT NOT NULL DEFAULT 'Pending Cleaning',
+  sanitization_protocol TEXT NOT NULL DEFAULT 'Standard Terminal Clean',
+  responsible_staff TEXT NOT NULL DEFAULT 'Housekeeping Team',
+  notes TEXT NOT NULL DEFAULT '',
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
