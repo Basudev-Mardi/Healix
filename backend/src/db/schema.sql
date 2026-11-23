@@ -552,3 +552,131 @@ CREATE TABLE IF NOT EXISTS icu_dispositions (
   completed_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =======================================
+-- MODULE 06: OPERATION THEATRE MANAGEMENT
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS ot_theatres (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  specialty TEXT NOT NULL,
+  location TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Available',
+  current_surgery_id TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ot_surgeons (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  specialty TEXT NOT NULL,
+  role_type TEXT NOT NULL DEFAULT 'Surgeon',
+  is_available BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS ot_surgeries (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  admission_id TEXT,
+  theatre_id TEXT NOT NULL REFERENCES ot_theatres(id),
+  theatre_name TEXT NOT NULL,
+  diagnosis TEXT NOT NULL,
+  surgery_type TEXT NOT NULL DEFAULT 'Elective',
+  procedure_name TEXT NOT NULL,
+  scheduled_date TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  priority TEXT NOT NULL DEFAULT 'Normal',
+  status TEXT NOT NULL DEFAULT 'Scheduled',
+  cancel_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ot_surgeon_assignments (
+  id TEXT PRIMARY KEY,
+  surgery_id TEXT NOT NULL REFERENCES ot_surgeries(id) ON DELETE CASCADE,
+  surgeon_id TEXT NOT NULL REFERENCES ot_surgeons(id),
+  surgeon_name TEXT NOT NULL,
+  specialty TEXT NOT NULL,
+  assigned_role TEXT NOT NULL,
+  assigned_by TEXT NOT NULL,
+  assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ot_preop_checklists (
+  id TEXT PRIMARY KEY,
+  surgery_id TEXT NOT NULL UNIQUE REFERENCES ot_surgeries(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  identity_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  procedure_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+  consent_signed BOOLEAN NOT NULL DEFAULT FALSE,
+  allergies_reviewed BOOLEAN NOT NULL DEFAULT FALSE,
+  allergies_notes TEXT NOT NULL DEFAULT 'None',
+  npo_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+  preop_labs_ready BOOLEAN NOT NULL DEFAULT FALSE,
+  anesthesia_clearance BOOLEAN NOT NULL DEFAULT FALSE,
+  site_marked BOOLEAN NOT NULL DEFAULT FALSE,
+  preparation_notes TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Pending',
+  verified_by TEXT,
+  verified_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ot_surgical_records (
+  id TEXT PRIMARY KEY,
+  surgery_id TEXT NOT NULL UNIQUE REFERENCES ot_surgeries(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  procedure_performed TEXT NOT NULL,
+  surgery_date TEXT NOT NULL,
+  actual_start_time TEXT NOT NULL,
+  actual_end_time TEXT NOT NULL,
+  primary_surgeon TEXT NOT NULL,
+  assisting_surgeons TEXT NOT NULL DEFAULT '',
+  participating_staff TEXT NOT NULL DEFAULT '',
+  surgical_findings TEXT NOT NULL,
+  operative_notes TEXT NOT NULL,
+  complications TEXT NOT NULL DEFAULT 'None',
+  outcome TEXT NOT NULL,
+  recorded_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ot_anesthesia_records (
+  id TEXT PRIMARY KEY,
+  surgery_id TEXT NOT NULL UNIQUE REFERENCES ot_surgeries(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  anesthesiologist TEXT NOT NULL,
+  anesthesia_type TEXT NOT NULL,
+  pre_anesthesia_assessment TEXT NOT NULL,
+  medications_and_dosages TEXT NOT NULL,
+  intraop_monitoring TEXT NOT NULL DEFAULT '',
+  anesthesia_start_time TEXT NOT NULL,
+  anesthesia_end_time TEXT NOT NULL,
+  recovery_details TEXT NOT NULL DEFAULT '',
+  observations TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ot_postop_monitoring (
+  id TEXT PRIMARY KEY,
+  surgery_id TEXT NOT NULL REFERENCES ot_surgeries(id) ON DELETE CASCADE,
+  surgical_record_id TEXT REFERENCES ot_surgical_records(id) ON DELETE SET NULL,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  responsible_staff TEXT NOT NULL,
+  patient_condition TEXT NOT NULL DEFAULT 'Recovering',
+  vitals JSONB NOT NULL DEFAULT '{}'::jsonb,
+  pain_score TEXT NOT NULL DEFAULT '3/10',
+  recovery_status TEXT NOT NULL DEFAULT 'PACU Observation',
+  medications_and_care TEXT NOT NULL DEFAULT '',
+  complications TEXT NOT NULL DEFAULT 'None',
+  observations TEXT NOT NULL DEFAULT '',
+  transfer_destination TEXT NOT NULL DEFAULT 'PACU / Recovery',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

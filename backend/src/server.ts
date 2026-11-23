@@ -6,6 +6,7 @@ import { emergencyRoutes } from "./emergency/routes.js";
 import { icuRoutes } from "./icu/routes.js";
 import { ipdRoutes } from "./ipd/routes.js";
 import { opdRoutes } from "./opd/routes.js";
+import { otRoutes } from "./ot/routes.js";
 import { wardsBedsRoutes } from "./wards-beds/routes.js";
 
 const app = new Hono();
@@ -24,6 +25,7 @@ app.use(
       "x-ipd-role",
       "x-ward-role",
       "x-icu-role",
+      "x-ot-role",
     ],
   })
 );
@@ -49,6 +51,7 @@ app.route("/api/emergency", emergencyRoutes);
 app.route("/api/ipd", ipdRoutes);
 app.route("/api/wards-beds", wardsBedsRoutes);
 app.route("/api/icu", icuRoutes);
+app.route("/api/ot", otRoutes);
 
 const port = Number(process.env.PORT || 4000);
 

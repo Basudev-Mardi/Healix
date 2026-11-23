@@ -428,7 +428,69 @@ async function seed() {
        ON CONFLICT (id) DO NOTHING`
     );
 
-    // 9. Initialize Counters
+    // 9. Seed Operation Theatre Management
+    const theatres: [string, string, string, string, string, string | null][] = [
+      ["OT-01", "OT Suite 1 (Cardiac)", "Cardiothoracic Surgery", "Surgical Block - Floor 2", "Available", null],
+      ["OT-02", "OT Suite 2 (Orthopedic)", "Orthopedics & Joint", "Surgical Block - Floor 2", "Reserved", "SUR-2026-0001"],
+      ["OT-03", "OT Suite 3 (General)", "General & Laparoscopic", "Surgical Block - Floor 2", "Available", null],
+      ["OT-04", "OT Suite 4 (Trauma)", "Emergency & Trauma", "Surgical Block - Floor 1", "Cleaning", null],
+    ];
+    for (const row of theatres) {
+      await pool.query(
+        `INSERT INTO ot_theatres (id, name, specialty, location, status, current_surgery_id)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (id) DO NOTHING`,
+        row
+      );
+    }
+
+    const surgeons: [string, string, string, string, boolean][] = [
+      ["SRG-001", "Dr. Sunita Kapoor", "Orthopedic Surgery", "Surgeon", true],
+      ["SRG-002", "Dr. Kabir Malhotra", "Trauma & General Surgery", "Surgeon", true],
+      ["SRG-003", "Dr. Lin Chen", "Cardiothoracic Surgery", "Surgeon", true],
+      ["SRG-004", "Dr. Maya Roy", "Anesthesiology", "Anesthesiologist", true],
+      ["SRG-005", "Dr. Devika Nair", "Anesthesiology", "Anesthesiologist", true],
+    ];
+    for (const row of surgeons) {
+      await pool.query(
+        `INSERT INTO ot_surgeons (id, name, specialty, role_type, is_available)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (id) DO NOTHING`,
+        row
+      );
+    }
+
+    await pool.query(
+      `INSERT INTO ot_surgeries (id, patient_id, patient_name, theatre_id, theatre_name, diagnosis, surgery_type, procedure_name, scheduled_date, start_time, end_time, priority, status)
+       VALUES (
+         'SUR-2026-0001','PAT-2026-0003','Claire Evans','OT-02','OT Suite 2 (Orthopedic)',
+         'Right Knee Meniscal Tear','Elective','Arthroscopic Partial Meniscectomy',
+         $1,'11:00','12:30','Normal','Confirmed'
+       ) ON CONFLICT (id) DO NOTHING`,
+      [today]
+    );
+
+    await pool.query(
+      `INSERT INTO ot_surgeon_assignments (id, surgery_id, surgeon_id, surgeon_name, specialty, assigned_role, assigned_by)
+       VALUES
+         ('ASN-2026-0001','SUR-2026-0001','SRG-001','Dr. Sunita Kapoor','Orthopedic Surgery','Primary Surgeon','OT Manager'),
+         ('ASN-2026-0002','SUR-2026-0001','SRG-004','Dr. Maya Roy','Anesthesiology','Anesthesiologist','OT Manager')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO ot_preop_checklists (
+         id, surgery_id, patient_id, identity_verified, procedure_confirmed, consent_signed,
+         allergies_reviewed, allergies_notes, npo_confirmed, preop_labs_ready, anesthesia_clearance,
+         site_marked, preparation_notes, status
+       ) VALUES (
+         'CHK-2026-0001','SUR-2026-0001','PAT-2026-0003',TRUE,TRUE,TRUE,
+         TRUE,'Sulfa drugs',TRUE,TRUE,FALSE,
+         TRUE,'Awaiting final anesthesia pre-op sign-off before moving to Ready.','Pending'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 10. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -460,6 +522,12 @@ async function seed() {
       ["icu_ventilator", 1],
       ["icu_medication", 2],
       ["icu_disposition", 0],
+      ["ot_surgery", 1],
+      ["ot_assignment", 2],
+      ["ot_checklist", 1],
+      ["ot_surgical_record", 0],
+      ["ot_anesthesia_record", 0],
+      ["ot_postop", 0],
     ];
     for (const [key, val] of counters) {
       await pool.query(
