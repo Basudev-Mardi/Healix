@@ -228,3 +228,141 @@ CREATE TABLE IF NOT EXISTS emergency_transfers (
   transferred_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =========================
+-- MODULE 03: IPD MANAGEMENT
+-- =========================
+
+CREATE TABLE IF NOT EXISTS ipd_beds (
+  id TEXT PRIMARY KEY,
+  department TEXT NOT NULL,
+  ward TEXT NOT NULL,
+  room TEXT NOT NULL,
+  bed_number TEXT NOT NULL,
+  bed_type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Available',
+  current_admission_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ipd_admission_requests (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  department TEXT NOT NULL,
+  requested_bed_type TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  priority TEXT NOT NULL DEFAULT 'Normal',
+  requested_by TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Pending',
+  reviewed_by TEXT,
+  review_notes TEXT,
+  converted_admission_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ipd_admissions (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  patient_name TEXT NOT NULL,
+  admission_request_id TEXT,
+  admission_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  admitting_doctor TEXT NOT NULL,
+  department TEXT NOT NULL,
+  ward TEXT NOT NULL,
+  room TEXT NOT NULL,
+  bed_id TEXT NOT NULL REFERENCES ipd_beds(id),
+  bed_label TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  diagnosis TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Admitted',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ipd_transfers (
+  id TEXT PRIMARY KEY,
+  admission_id TEXT NOT NULL REFERENCES ipd_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  from_department TEXT NOT NULL,
+  from_ward TEXT NOT NULL,
+  from_room TEXT NOT NULL,
+  from_bed_id TEXT NOT NULL,
+  to_department TEXT NOT NULL,
+  to_ward TEXT NOT NULL,
+  to_room TEXT NOT NULL,
+  to_bed_id TEXT NOT NULL REFERENCES ipd_beds(id),
+  reason TEXT NOT NULL,
+  requesting_doctor TEXT NOT NULL,
+  responsible_staff TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Completed',
+  transferred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ipd_progress_notes (
+  id TEXT PRIMARY KEY,
+  admission_id TEXT NOT NULL REFERENCES ipd_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  note_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  recorded_by TEXT NOT NULL,
+  recorded_role TEXT NOT NULL,
+  vitals JSONB NOT NULL DEFAULT '{}'::jsonb,
+  symptoms TEXT NOT NULL,
+  observations TEXT NOT NULL,
+  patient_condition TEXT NOT NULL DEFAULT 'Stable',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ipd_treatment_plans (
+  id TEXT PRIMARY KEY,
+  admission_id TEXT NOT NULL REFERENCES ipd_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  doctor_name TEXT NOT NULL,
+  diagnosis TEXT NOT NULL,
+  treatment_instructions TEXT NOT NULL,
+  medications TEXT NOT NULL,
+  procedures TEXT NOT NULL DEFAULT 'None',
+  care_requirements TEXT NOT NULL DEFAULT '',
+  assigned_staff TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Active',
+  version INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ipd_discharges (
+  id TEXT PRIMARY KEY,
+  admission_id TEXT NOT NULL UNIQUE REFERENCES ipd_admissions(id) ON DELETE CASCADE,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  discharge_date TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  clinical_clearance BOOLEAN NOT NULL DEFAULT FALSE,
+  billing_clearance BOOLEAN NOT NULL DEFAULT FALSE,
+  pharmacy_clearance BOOLEAN NOT NULL DEFAULT FALSE,
+  doctor_approval BOOLEAN NOT NULL DEFAULT FALSE,
+  approved_by TEXT,
+  status TEXT NOT NULL DEFAULT 'Pending',
+  discharge_summary_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ipd_discharge_summaries (
+  id TEXT PRIMARY KEY,
+  admission_id TEXT NOT NULL UNIQUE REFERENCES ipd_admissions(id) ON DELETE CASCADE,
+  discharge_id TEXT,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  admission_date TEXT NOT NULL,
+  discharge_date TEXT NOT NULL,
+  final_diagnosis TEXT NOT NULL,
+  treatment_received TEXT NOT NULL,
+  procedures_performed TEXT NOT NULL DEFAULT 'None',
+  clinical_progress TEXT NOT NULL,
+  discharge_medications TEXT NOT NULL,
+  follow_up_instructions TEXT NOT NULL,
+  recommendations TEXT NOT NULL DEFAULT '',
+  responsible_doctor TEXT NOT NULL,
+  authorized_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

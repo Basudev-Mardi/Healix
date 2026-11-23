@@ -243,7 +243,66 @@ async function seed() {
        ) ON CONFLICT (id) DO NOTHING`
     );
 
-    // 6. Initialize Counters
+    // 6. Seed IPD Beds & Initial Inpatient Records
+    const beds: [string, string, string, string, string, string, string, string | null][] = [
+      ["BED-A101", "General Medicine", "Ward A", "Room 101", "A-101", "General", "Occupied", "ADM-2026-0001"],
+      ["BED-A102", "General Medicine", "Ward A", "Room 101", "A-102", "General", "Available", null],
+      ["BED-A103", "General Medicine", "Ward A", "Room 102", "A-103", "Semi-Private", "Available", null],
+      ["BED-B201", "Cardiology", "Ward B", "Room 201", "B-201", "Private", "Available", null],
+      ["BED-B202", "Cardiology", "Ward B", "Room 202", "B-202", "Step-Down", "Available", null],
+      ["BED-C301", "Orthopedics", "Ward C", "Room 301", "C-301", "Semi-Private", "Available", null],
+      ["BED-C302", "Orthopedics", "Ward C", "Room 302", "C-302", "Private", "Available", null],
+      ["BED-ICU01", "Critical Care", "ICU Wing", "ICU Bay 1", "ICU-01", "ICU", "Available", null],
+    ];
+    for (const row of beds) {
+      await pool.query(
+        `INSERT INTO ipd_beds (id, department, ward, room, bed_number, bed_type, status, current_admission_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT (id) DO NOTHING`,
+        row
+      );
+    }
+
+    await pool.query(
+      `INSERT INTO ipd_admission_requests (id, patient_id, patient_name, department, requested_bed_type, reason, priority, requested_by, status)
+       VALUES (
+         'ARQ-2026-0001','PAT-2026-0003','Claire Evans','Orthopedics','Semi-Private',
+         'Arthroscopic knee repair requiring 48h inpatient post-op monitoring','Normal','Dr. Sunita Kapoor','Pending'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO ipd_admissions (id, patient_id, patient_name, admitting_doctor, department, ward, room, bed_id, bed_label, reason, diagnosis, status)
+       VALUES (
+         'ADM-2026-0001','PAT-2026-0001','Ananya Sharma','Dr. Rajesh Mehta','General Medicine','Ward A','Room 101','BED-A101','Ward A / Room 101 / A-101',
+         'Persistent high-grade fever and dehydration requiring IV antibiotics','Community-Acquired Pneumonia','Under Treatment'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO ipd_progress_notes (id, admission_id, patient_id, recorded_by, recorded_role, vitals, symptoms, observations, patient_condition)
+       VALUES (
+         'PRG-2026-0001','ADM-2026-0001','PAT-2026-0001','Dr. Rajesh Mehta','Doctor',
+         '{"bloodPressure":"116/74 mmHg","heartRate":"82 bpm","temperature":"99.1 °F","spo2":"97%","respiratoryRate":"18 /min"}'::jsonb,
+         'Reduced cough and fever trending down after 24h IV Ceftriaxone',
+         'Decreased right basal crackles; tolerating oral fluids well',
+         'Improving'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO ipd_treatment_plans (id, admission_id, patient_id, doctor_name, diagnosis, treatment_instructions, medications, procedures, care_requirements, assigned_staff, status, version)
+       VALUES (
+         'TPL-2026-0001','ADM-2026-0001','PAT-2026-0001','Dr. Rajesh Mehta','Community-Acquired Pneumonia',
+         'Continue IV antibiotics for 48 hours then step down to oral therapy; monitor SpO2 q4h',
+         'Ceftriaxone 1g IV q12h, Azithromycin 500mg Oral OD, Paracetamol 650mg PRN',
+         'Chest X-Ray repeat on Day 3',
+         'Incentive spirometry, hydration >= 2L/day',
+         'Ward A Nursing Team','Active',1
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 7. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -257,6 +316,13 @@ async function seed() {
       ["emergency_treatment", 1],
       ["emergency_alert", 2],
       ["emergency_transfer", 1],
+      ["ipd_request", 1],
+      ["ipd_admission", 1],
+      ["ipd_transfer", 0],
+      ["ipd_progress_note", 1],
+      ["ipd_treatment_plan", 1],
+      ["ipd_discharge", 0],
+      ["ipd_discharge_summary", 0],
     ];
     for (const [key, val] of counters) {
       await pool.query(

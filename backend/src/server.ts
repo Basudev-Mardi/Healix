@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { getPool } from "./db/client.js";
 import { emergencyRoutes } from "./emergency/routes.js";
+import { ipdRoutes } from "./ipd/routes.js";
 import { opdRoutes } from "./opd/routes.js";
 
 const app = new Hono();
@@ -14,7 +15,7 @@ app.use(
   cors({
     origin: corsOrigin,
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "x-opd-role", "x-emergency-role"],
+    allowHeaders: ["Content-Type", "x-opd-role", "x-emergency-role", "x-ipd-role"],
   })
 );
 
@@ -36,6 +37,7 @@ app.get("/health", async (c) => {
 
 app.route("/api/opd", opdRoutes);
 app.route("/api/emergency", emergencyRoutes);
+app.route("/api/ipd", ipdRoutes);
 
 const port = Number(process.env.PORT || 4000);
 
