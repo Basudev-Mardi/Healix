@@ -1,3 +1,4 @@
+import { scryptSync } from "node:crypto";
 import { createDirectPool } from "./client.js";
 
 const STANDARD_SLOTS = [
@@ -945,7 +946,7 @@ async function seed() {
          ('ATT-2026-0001','EMP-2026-0001','Dr. Rajesh Mehta','General Medicine',$1,'08:55','17:30',8.58,0.58,FALSE,FALSE,'Present','Biometric Sync'),
          ('ATT-2026-0002','EMP-2026-0002','Nurse Anjali Deshmukh','ICU',$1,'07:00','17:00',10.00,2.00,FALSE,FALSE,'Present','Biometric Sync'),
          ('ATT-2026-0003','EMP-2026-0003','Arjun Kulkarni','Laboratory',$1,'09:25','17:30',8.08,0.08,TRUE,FALSE,'Late','Biometric Sync')
-       ON CONFLICT (employee_id, attendance_date) DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       [today]
     );
 
@@ -1000,7 +1001,116 @@ async function seed() {
        ON CONFLICT (id) DO NOTHING`
     );
 
-    // 17. Initialize Counters
+    // 17. Seed Inventory & Procurement Management
+    await pool.query(
+      `INSERT INTO inv_suppliers (
+         id, company_name, contact_person, phone, email, address, gst_number,
+         supplied_products, payment_terms, status, total_po_spend
+       ) VALUES
+         ('ISUP-2026-0001','MedTech Clinical Systems','Vikramaditya Joshi','+91-98230-11220','sales@medtechclinical.in','Hinjewadi Phase 2, Pune','27AABCM1234F1Z5','ICU Ventilators, Patient Monitors, OT Consumables','Net 30 Days','Active',18400.00),
+         ('ISUP-2026-0002','SterileCare Medical Supplies','Sunita Deshpande','+91-98230-33440','orders@sterilecare.in','Bhosari MIDC, Pune','27AADCS9876K1Z2','Surgical Gloves, IV Cannulas, Syringes, Reagents','Net 15 Days','Active',4250.00)
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO inv_equipment (
+         id, name, category, model, serial_number, manufacturer, supplier_id,
+         purchase_date, purchase_cost, warranty_expiry, location, assigned_department,
+         assigned_staff, condition, operational_status, next_maintenance_date
+       ) VALUES
+         ('EQP-INV-2026-0001','ICU Mechanical Ventilator','Critical Care','Dräger Evita V600','SN-DRG-99410','Dräger Medical','ISUP-2026-0001','2025-01-15',18500.00,'2028-01-15','ICU Floor 3 - Bay 1','ICU','Nurse Anjali Deshmukh','Excellent','In Use','2026-12-05'),
+         ('EQP-INV-2026-0002','Multipara Patient Monitor','Monitoring','Philips IntelliVue MX750','SN-PHL-88201','Philips Healthcare','ISUP-2026-0001','2025-06-10',6200.00,'2028-06-10','OT Suite 1','Operation Theatre','Dr. Maya Roy','Good','Operational','2026-12-20'),
+         ('EQP-INV-2026-0003','Automated Hematology Analyzer','Diagnostics','Sysmex XN-1000','SN-SYS-44109','Sysmex Corp','ISUP-2026-0001','2024-09-01',24000.00,'2027-09-01','Central Lab Wing','Laboratory','Arjun Kulkarni','Needs Repair','Under Maintenance','2026-11-25')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO inv_consumables (
+         id, sku, item_name, category, unit, quantity, reserved_qty, min_stock_level,
+         reorder_qty, batch_number, supplier_id, unit_price, storage_location, expiry_date, status
+       ) VALUES
+         ('CON-2026-0001','SKU-GLV-75','Sterile Surgical Gloves (Size 7.5)','Surgical Consumables','Box (50 pairs)',14,0,25,60,'GLV-26A','ISUP-2026-0002',18.50,'Central Medical Store','2027-08-31','Low Stock'),
+         ('CON-2026-0002','SKU-IVC-20','IV Cannula 20G Safety','Nursing Consumables','Box (100 pcs)',85,10,30,100,'IVC-26B','ISUP-2026-0002',24.00,'Central Medical Store','2027-11-30','In Stock'),
+         ('CON-2026-0003','SKU-SYR-5M','Disposable Syringe 5mL','General Consumables','Box (100 pcs)',0,0,40,120,'SYR-26A','ISUP-2026-0002',9.50,'Central Medical Store','2027-06-30','Out of Stock'),
+         ('CON-2026-0004','SKU-RGT-CB','CBC Hematology Diluent 20L','Lab Reagents','Canister',6,0,5,10,'RGT-25X','ISUP-2026-0002',65.00,'Lab Cold Store','2026-10-15','Expired')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO inv_purchase_orders (
+         id, requisition_ref, supplier_id, supplier_name, department, items,
+         subtotal, discount_amount, tax_amount, total_amount, expected_delivery_date,
+         approval_status, order_status, created_by
+       ) VALUES (
+         'PO-2026-0001','REQ-2026-001','ISUP-2026-0002','SterileCare Medical Supplies','Central Store',
+         '[{"consumableId":"CON-2026-0001","sku":"SKU-GLV-75","itemName":"Sterile Surgical Gloves (Size 7.5)","orderedQty":60,"receivedQty":0,"rejectedQty":0,"unitPrice":18.5,"lineTotal":1110},{"consumableId":"CON-2026-0003","sku":"SKU-SYR-5M","itemName":"Disposable Syringe 5mL","orderedQty":100,"receivedQty":0,"rejectedQty":0,"unitPrice":9.5,"lineTotal":950}]'::jsonb,
+         2060.00, 60.00, 240.00, 2240.00, '2026-11-28',
+         'Approved', 'Ordered', 'Procurement Officer'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO inv_stock_transfers (
+         id, consumable_id, sku, item_name, source_location, destination_location,
+         destination_department, quantity, requested_by, approved_by, status, notes
+       ) VALUES (
+         'TRF-2026-0001','CON-2026-0002','SKU-IVC-20','IV Cannula 20G Safety',
+         'Central Medical Store','ICU Floor 3 Store','ICU',15,'Nurse Anjali Deshmukh',NULL,'Requested',
+         'Weekly ICU replenishment transfer'
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO inv_asset_maintenance (
+         id, equipment_id, equipment_name, maintenance_type, scheduled_date,
+         service_provider, cost, warranty_covered, findings, next_maintenance_date, status
+       ) VALUES
+         ('MNT-2026-0001','EQP-INV-2026-0003','Automated Hematology Analyzer','Corrective','2026-11-24','Sysmex Biomedical Service',420.00,FALSE,'Optical sensor calibration drift — replacement module ordered','2027-05-24','In Progress'),
+         ('MNT-2026-0002','EQP-INV-2026-0001','ICU Mechanical Ventilator','Preventive','2026-12-05','Dräger Authorized Service',0.00,TRUE,'Scheduled 6-month preventive calibration & O2 cell check','2027-06-05','Scheduled')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO inv_audit_logs (id, entity_type, entity_id, action, actor_role, actor_name, details)
+       VALUES
+         ('IAUD-2026-0001','PurchaseOrder','PO-2026-0001','Approved','Inventory Manager','Procurement Officer','Approved PO-2026-0001 ($2,240.00) for SterileCare Medical Supplies')
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 18. Seed Patient Portal Credentials, Notifications & Support
+    const seedSalt = "healix-portal-seed-salt";
+    const defaultPwHash = `${seedSalt}:${scryptSync("patient123", seedSalt, 32).toString("hex")}`;
+    await pool.query(
+      `INSERT INTO patient_portal_credentials (patient_id, email, password_hash)
+       VALUES
+         ('PAT-2026-0001','ananya.sharma@example.com',$1),
+         ('PAT-2026-0002','vikram.rao@example.com',$1),
+         ('PAT-2026-0003','meera.patel@example.com',$1)
+       ON CONFLICT (patient_id) DO NOTHING`,
+      [defaultPwHash]
+    );
+
+    await pool.query(
+      `INSERT INTO patient_notifications (id, patient_id, category, title, message, is_read)
+       VALUES
+         ('NTF-2026-0001','PAT-2026-0001','Appointment','Upcoming OPD Appointment','Your consultation with Dr. Rajesh Mehta is scheduled. Please arrive 15 minutes early.',FALSE),
+         ('NTF-2026-0002','PAT-2026-0001','Prescription','Digital Prescription Ready','Your prescription RX-2026-0001 is available for viewing and download.',FALSE),
+         ('NTF-2026-0003','PAT-2026-0002','Lab Report','Lab Result Verified','Your Complete Blood Count (CBC-01) result has been verified by the Pathologist.',FALSE),
+         ('NTF-2026-0004','PAT-2026-0002','Billing','Outstanding Lab Balance','Invoice INV-2026-0002 has an outstanding balance of $44.50.',FALSE),
+         ('NTF-2026-0005','PAT-2026-0003','Admission','Insurance Claim Approved','Your insurance claim CLM-2026-0001 ($1,500.00) has been approved by StarHealth Shield TPA.',FALSE)
+       ON CONFLICT (id) DO NOTHING`
+    );
+
+    await pool.query(
+      `INSERT INTO patient_support_tickets (id, patient_id, subject, category, message, status, staff_response, responded_at)
+       VALUES (
+         'SUP-PT-2026-0001','PAT-2026-0001','Fasting instructions for upcoming lab panel','Lab Reports',
+         'Should I fast overnight before my HbA1c and Liver Function panel?',
+         'Resolved','Yes, please fast for 8–10 hours (water is permitted) prior to sample collection at the Central Lab.',NOW()
+       ) ON CONFLICT (id) DO NOTHING`
+    );
+
+    // 19. Initialize Counters
     const counters: [string, number][] = [
       ["patient", 3],
       ["unknown_patient", 1],
@@ -1081,6 +1191,15 @@ async function seed() {
       ["hr_payroll", 1],
       ["hr_performance", 1],
       ["hr_audit", 1],
+      ["inv_supplier", 2],
+      ["inv_equipment", 3],
+      ["inv_consumable", 4],
+      ["inv_po", 1],
+      ["inv_transfer", 1],
+      ["inv_maintenance", 2],
+      ["inv_audit", 1],
+      ["patient_notification", 5],
+      ["patient_support", 1],
     ];
     for (const [key, val] of counters) {
       await pool.query(

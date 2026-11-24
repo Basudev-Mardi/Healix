@@ -8,10 +8,12 @@ import { getPool } from "./db/client.js";
 import { emergencyRoutes } from "./emergency/routes.js";
 import { hrRoutes } from "./hr/routes.js";
 import { icuRoutes } from "./icu/routes.js";
+import { inventoryRoutes } from "./inventory/routes.js";
 import { ipdRoutes } from "./ipd/routes.js";
 import { labRoutes } from "./lab/routes.js";
 import { opdRoutes } from "./opd/routes.js";
 import { otRoutes } from "./ot/routes.js";
+import { patientPortalRoutes } from "./patient-portal/routes.js";
 import { pharmacyRoutes } from "./pharmacy/routes.js";
 import { radiologyRoutes } from "./radiology/routes.js";
 import { wardsBedsRoutes } from "./wards-beds/routes.js";
@@ -27,6 +29,7 @@ app.use(
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: [
       "Content-Type",
+      "Authorization",
       "x-opd-role",
       "x-emergency-role",
       "x-ipd-role",
@@ -40,6 +43,7 @@ app.use(
       "x-bloodbank-role",
       "x-ambulance-role",
       "x-hr-role",
+      "x-inventory-role",
     ],
   })
 );
@@ -73,6 +77,8 @@ app.route("/api/billing", billingRoutes);
 app.route("/api/blood-bank", bloodBankRoutes);
 app.route("/api/ambulance", ambulanceRoutes);
 app.route("/api/hr", hrRoutes);
+app.route("/api/inventory", inventoryRoutes);
+app.route("/api/patient-portal", patientPortalRoutes);
 
 const port = Number(process.env.PORT || 4000);
 

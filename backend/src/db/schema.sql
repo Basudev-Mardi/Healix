@@ -1435,3 +1435,169 @@ CREATE TABLE IF NOT EXISTS hr_audit_logs (
   details TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =======================================
+-- MODULE 14: INVENTORY & PROCUREMENT
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS inv_suppliers (
+  id TEXT PRIMARY KEY,
+  company_name TEXT NOT NULL UNIQUE,
+  contact_person TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT NOT NULL DEFAULT '',
+  address TEXT NOT NULL DEFAULT '',
+  gst_number TEXT NOT NULL DEFAULT '',
+  supplied_products TEXT NOT NULL DEFAULT '',
+  payment_terms TEXT NOT NULL DEFAULT 'Net 30 Days',
+  status TEXT NOT NULL DEFAULT 'Active',
+  total_po_spend NUMERIC(12,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS inv_equipment (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  model TEXT NOT NULL,
+  serial_number TEXT NOT NULL UNIQUE,
+  manufacturer TEXT NOT NULL,
+  supplier_id TEXT REFERENCES inv_suppliers(id) ON DELETE SET NULL,
+  purchase_date TEXT NOT NULL,
+  purchase_cost NUMERIC(12,2) NOT NULL DEFAULT 0,
+  warranty_expiry TEXT NOT NULL,
+  location TEXT NOT NULL,
+  assigned_department TEXT NOT NULL,
+  assigned_staff TEXT NOT NULL DEFAULT '',
+  condition TEXT NOT NULL DEFAULT 'Excellent',
+  operational_status TEXT NOT NULL DEFAULT 'Operational',
+  next_maintenance_date TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS inv_consumables (
+  id TEXT PRIMARY KEY,
+  sku TEXT NOT NULL UNIQUE,
+  item_name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'Box',
+  quantity INTEGER NOT NULL DEFAULT 0,
+  reserved_qty INTEGER NOT NULL DEFAULT 0,
+  min_stock_level INTEGER NOT NULL DEFAULT 20,
+  reorder_qty INTEGER NOT NULL DEFAULT 50,
+  batch_number TEXT NOT NULL DEFAULT '',
+  supplier_id TEXT REFERENCES inv_suppliers(id) ON DELETE SET NULL,
+  unit_price NUMERIC(10,2) NOT NULL DEFAULT 0,
+  storage_location TEXT NOT NULL DEFAULT 'Central Medical Store',
+  expiry_date TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'In Stock',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS inv_purchase_orders (
+  id TEXT PRIMARY KEY,
+  requisition_ref TEXT NOT NULL DEFAULT '',
+  supplier_id TEXT NOT NULL REFERENCES inv_suppliers(id),
+  supplier_name TEXT NOT NULL,
+  department TEXT NOT NULL DEFAULT 'Central Store',
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  subtotal NUMERIC(12,2) NOT NULL DEFAULT 0,
+  discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  tax_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  total_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  expected_delivery_date TEXT NOT NULL DEFAULT '',
+  approval_status TEXT NOT NULL DEFAULT 'Pending Approval',
+  order_status TEXT NOT NULL DEFAULT 'Requisition',
+  supplier_invoice_no TEXT NOT NULL DEFAULT '',
+  approved_by TEXT,
+  created_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS inv_stock_transfers (
+  id TEXT PRIMARY KEY,
+  consumable_id TEXT NOT NULL REFERENCES inv_consumables(id) ON DELETE CASCADE,
+  sku TEXT NOT NULL,
+  item_name TEXT NOT NULL,
+  source_location TEXT NOT NULL,
+  destination_location TEXT NOT NULL,
+  destination_department TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  requested_by TEXT NOT NULL,
+  approved_by TEXT,
+  status TEXT NOT NULL DEFAULT 'Requested',
+  notes TEXT NOT NULL DEFAULT '',
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS inv_asset_maintenance (
+  id TEXT PRIMARY KEY,
+  equipment_id TEXT NOT NULL REFERENCES inv_equipment(id) ON DELETE CASCADE,
+  equipment_name TEXT NOT NULL,
+  maintenance_type TEXT NOT NULL DEFAULT 'Preventive',
+  scheduled_date TEXT NOT NULL,
+  completed_date TEXT NOT NULL DEFAULT '',
+  service_provider TEXT NOT NULL,
+  cost NUMERIC(10,2) NOT NULL DEFAULT 0,
+  warranty_covered BOOLEAN NOT NULL DEFAULT FALSE,
+  findings TEXT NOT NULL DEFAULT '',
+  next_maintenance_date TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Scheduled',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS inv_audit_logs (
+  id TEXT PRIMARY KEY,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  actor_role TEXT NOT NULL,
+  actor_name TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =======================================
+-- PATIENT PORTAL (AUTH, NOTIFICATIONS, SUPPORT)
+-- =======================================
+
+CREATE TABLE IF NOT EXISTS patient_portal_credentials (
+  patient_id TEXT PRIMARY KEY REFERENCES patients(id) ON DELETE CASCADE,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  last_login_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS patient_portal_sessions (
+  token TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS patient_notifications (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  category TEXT NOT NULL DEFAULT 'Hospital',
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS patient_support_tickets (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  subject TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'General Inquiry',
+  message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Open',
+  staff_response TEXT NOT NULL DEFAULT '',
+  responded_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
